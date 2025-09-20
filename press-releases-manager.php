@@ -19,6 +19,12 @@ class PressReleasesManager {
         add_action('wp_ajax_load_press_release_urls', array($this, 'ajax_load_urls'));
         add_action('wp_ajax_nopriv_load_press_release_urls', array($this, 'ajax_load_urls'));
         add_shortcode('press_releases', array($this, 'shortcode_display'));
+
+        // Enable auto-updates
+        if (is_admin()) {
+            require_once plugin_dir_path(__FILE__) . 'plugin-updater.php';
+            new PressReleasesUpdater(__FILE__, 'your-username', 'press-releases-plugin');
+        }
     }
 
     public function init() {
