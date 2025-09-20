@@ -23,7 +23,7 @@ class PressReleasesManager {
         // Enable auto-updates
         if (is_admin()) {
             require_once plugin_dir_path(__FILE__) . 'plugin-updater.php';
-            new PressReleasesUpdater(__FILE__, 'your-username', 'press-releases-plugin');
+            new PressReleasesUpdater(__FILE__, 'inboundinteractivegit', 'press-releases-plugin');
         }
     }
 
