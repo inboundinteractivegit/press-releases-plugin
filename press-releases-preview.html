@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Press Releases Manager - Preview</title>
+    <style>
+        /* Press Releases Manager - CSS Styles */
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .press-releases-container {
+            max-width: 100%;
+            margin: 20px 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .press-release-item {
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.2s ease;
+        }
+
+        .press-release-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .accordion-header {
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+            transition: background-color 0.2s ease;
+            user-select: none;
+        }
+
+        .accordion-header:hover {
+            background: #e9ecef;
+        }
+
+        .accordion-header.active {
+            background: #007cba;
+            color: white;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .release-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            flex-grow: 1;
+        }
+
+        .accordion-header.active .release-title {
+            color: white;
+        }
+
+        .release-meta {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .accordion-header.active .release-meta {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .release-date {
+            font-weight: 500;
+        }
+
+        .url-count {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .accordion-header.active .url-count {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .toggle-icon {
+            font-size: 18px;
+            font-weight: bold;
+            transition: transform 0.2s ease;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .toggle-icon.rotated {
+            transform: rotate(45deg);
+        }
+
+        .accordion-content {
+            display: none;
+            padding: 0;
+            border-top: 1px solid #e1e4e8;
+        }
+
+        .accordion-content.active {
+            display: block;
+        }
+
+        .release-description {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f1f3f4;
+            background: #fafbfc;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #586069;
+        }
+
+        .urls-container {
+            padding: 20px;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .loading-spinner span {
+            display: inline-block;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .urls-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .urls-count {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .copy-all-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+
+        .copy-all-btn:hover {
+            background: #218838;
+        }
+
+        .urls-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+        }
+
+        .url-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f1f3f4;
+            transition: background-color 0.2s ease;
+        }
+
+        .url-item:last-child {
+            border-bottom: none;
+        }
+
+        .url-item:hover {
+            background: #f8f9fa;
+        }
+
+        .url-item a {
+            color: #007cba;
+            text-decoration: none;
+            font-weight: 500;
+            flex-shrink: 0;
+            margin-right: 15px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .url-item a:hover {
+            text-decoration: underline;
+        }
+
+        .url-link {
+            flex-grow: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 10px;
+        }
+
+        .copy-url-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .copy-url-btn:hover {
+            background: #545b62;
+        }
+
+        .copy-url-btn.copied {
+            background: #28a745;
+        }
+
+        /* Demo specific styles */
+        .demo-note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .feature-list {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 30px;
+        }
+
+        .feature-list h3 {
+            margin-top: 0;
+            color: #0066cc;
+        }
+
+        .feature-list ul {
+            margin: 10px 0;
+        }
+
+        .feature-list li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📰 Press Releases Manager - Live Preview</h1>
+
+        <div class="demo-note">
+            <strong>🎯 Demo Preview:</strong> This shows exactly how your press releases will look on your WordPress site. Click the accordions to see the URL loading simulation!
+        </div>
+
+        <div class="press-releases-container">
+            <!-- Press Release 1 -->
+            <div class="press-release-item" data-release-id="1">
+                <div class="accordion-header">
+                    <h3 class="release-title">🚀 New Product Launch Campaign</h3>
+                    <div class="release-meta">
+                        <span class="release-date">September 15, 2025</span>
+                        <span class="url-count">(523 URLs)</span>
+                        <span class="toggle-icon">+</span>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="release-description">
+                        Major product launch featuring our latest innovation. This press release was distributed across 523 media outlets, news websites, and industry publications for maximum coverage and SEO impact.
+                    </div>
+                    <div class="urls-container">
+                        <div class="loading-spinner">
+                            <span>Loading URLs...</span>
+                        </div>
+                        <div class="urls-content"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Press Release 2 -->
+            <div class="press-release-item" data-release-id="2">
+                <div class="accordion-header">
+                    <h3 class="release-title">🏆 Industry Award Recognition</h3>
+                    <div class="release-meta">
+                        <span class="release-date">August 28, 2025</span>
+                        <span class="url-count">(789 URLs)</span>
+                        <span class="toggle-icon">+</span>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="release-description">
+                        Company receives prestigious industry award for innovation and excellence. Distributed to major news networks, trade publications, and online media outlets worldwide.
+                    </div>
+                    <div class="urls-container">
+                        <div class="loading-spinner">
+                            <span>Loading URLs...</span>
+                        </div>
+                        <div class="urls-content"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Press Release 3 -->
+            <div class="press-release-item" data-release-id="3">
+                <div class="accordion-header">
+                    <h3 class="release-title">🌍 Global Expansion Announcement</h3>
+                    <div class="release-meta">
+                        <span class="release-date">July 12, 2025</span>
+                        <span class="url-count">(456 URLs)</span>
+                        <span class="toggle-icon">+</span>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="release-description">
+                        Strategic expansion into international markets with new office locations and partnerships. Comprehensive media coverage across business and financial publications.
+                    </div>
+                    <div class="urls-container">
+                        <div class="loading-spinner">
+                            <span>Loading URLs...</span>
+                        </div>
+                        <div class="urls-content"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Press Release 4 -->
+            <div class="press-release-item" data-release-id="4">
+                <div class="accordion-header">
+                    <h3 class="release-title">💡 Technology Partnership</h3>
+                    <div class="release-meta">
+                        <span class="release-date">June 5, 2025</span>
+                        <span class="url-count">(634 URLs)</span>
+                        <span class="toggle-icon">+</span>
+                    </div>
+                </div>
+                <div class="accordion-content">
+                    <div class="release-description">
+                        Strategic technology partnership announcement creating new opportunities for innovation and market growth. Extensive coverage in tech media and industry publications.
+                    </div>
+                    <div class="urls-container">
+                        <div class="loading-spinner">
+                            <span>Loading URLs...</span>
+                        </div>
+                        <div class="urls-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-list">
+            <h3>✨ Key Features Demonstrated:</h3>
+            <ul>
+                <li><strong>🎯 Accordion Interface:</strong> Clean, organized display with collapsible sections</li>
+                <li><strong>⚡ AJAX Loading:</strong> URLs load only when needed (simulated here)</li>
+                <li><strong>📱 Responsive Design:</strong> Works perfectly on desktop, tablet, and mobile</li>
+                <li><strong>📋 Copy Functions:</strong> Copy individual URLs or all URLs at once</li>
+                <li><strong>🔍 SEO Optimized:</strong> All URLs crawlable by Google once loaded</li>
+                <li><strong>💾 Easy Management:</strong> Bulk import 500+ URLs per press release</li>
+                <li><strong>🎨 Professional Look:</strong> Matches modern WordPress themes</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Demo JavaScript simulation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Sample URLs for demo
+            const sampleUrls = [
+                { title: 'TechCrunch Article', url: 'https://techcrunch.com/press-release-article-1' },
+                { title: 'Forbes Coverage', url: 'https://forbes.com/company-news-coverage' },
+                { title: 'Reuters Business', url: 'https://reuters.com/business-announcement' },
+                { title: 'Wall Street Journal', url: 'https://wsj.com/corporate-news-story' },
+                { title: 'Bloomberg Technology', url: 'https://bloomberg.com/technology-partnership' },
+                { title: 'Business Wire', url: 'https://businesswire.com/press-release-12345' },
+                { title: 'PR Newswire', url: 'https://prnewswire.com/news-announcement' },
+                { title: 'Yahoo Finance', url: 'https://finance.yahoo.com/corporate-update' },
+                { title: 'MarketWatch', url: 'https://marketwatch.com/company-expansion' },
+                { title: 'Industry Weekly', url: 'https://industryweekly.com/award-recognition' }
+            ];
+
+            // Accordion functionality
+            document.querySelectorAll('.accordion-header').forEach(header => {
+                header.addEventListener('click', function() {
+                    const item = this.closest('.press-release-item');
+                    const content = item.querySelector('.accordion-content');
+                    const icon = this.querySelector('.toggle-icon');
+                    const releaseId = item.dataset.releaseId;
+
+                    // Close other accordions
+                    document.querySelectorAll('.accordion-content.active').forEach(otherContent => {
+                        if (otherContent !== content) {
+                            otherContent.classList.remove('active');
+                            otherContent.previousElementSibling.classList.remove('active');
+                            otherContent.previousElementSibling.querySelector('.toggle-icon').classList.remove('rotated');
+                            otherContent.previousElementSibling.querySelector('.toggle-icon').textContent = '+';
+                        }
+                    });
+
+                    // Toggle current accordion
+                    if (content.classList.contains('active')) {
+                        content.classList.remove('active');
+                        this.classList.remove('active');
+                        icon.classList.remove('rotated');
+                        icon.textContent = '+';
+                    } else {
+                        content.classList.add('active');
+                        this.classList.add('active');
+                        icon.classList.add('rotated');
+                        icon.textContent = '×';
+
+                        // Simulate AJAX loading
+                        if (!content.classList.contains('loaded')) {
+                            simulateUrlLoading(content, releaseId);
+                        }
+                    }
+                });
+            });
+
+            function simulateUrlLoading(content, releaseId) {
+                const urlsContent = content.querySelector('.urls-content');
+                const loadingSpinner = content.querySelector('.loading-spinner');
+
+                // Show loading for 1.5 seconds
+                setTimeout(() => {
+                    loadingSpinner.style.display = 'none';
+
+                    // Generate sample URLs based on release ID
+                    const urlCount = [523, 789, 456, 634][releaseId - 1] || 500;
+                    const displayUrls = sampleUrls.slice(0, Math.min(10, sampleUrls.length));
+
+                    urlsContent.innerHTML = `
+                        <div class="press-release-urls">
+                            <div class="urls-header">
+                                <span class="urls-count">${urlCount} URLs found</span>
+                                <button class="copy-all-btn" onclick="copyAllUrls(this)">Copy All URLs</button>
+                            </div>
+                            <div class="urls-list">
+                                ${displayUrls.map(url => `
+                                    <div class="url-item">
+                                        <a href="${url.url}" target="_blank" rel="noopener">${url.title}</a>
+                                        <span class="url-link">${url.url}</span>
+                                        <button class="copy-url-btn" onclick="copyUrl('${url.url}', this)">Copy</button>
+                                    </div>
+                                `).join('')}
+                                <div style="text-align: center; padding: 15px; color: #666; font-style: italic;">
+                                    ... and ${urlCount - 10} more URLs (showing first 10 for demo)
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    content.classList.add('loaded');
+                }, 1500);
+            }
+        });
+
+        function copyUrl(url, button) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showCopySuccess(button);
+                });
+            } else {
+                showCopySuccess(button);
+            }
+        }
+
+        function copyAllUrls(button) {
+            const urlsList = button.closest('.urls-container').querySelectorAll('.url-link');
+            const urls = Array.from(urlsList).map(el => el.textContent.trim()).join('\n');
+
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(urls).then(() => {
+                    showCopySuccess(button, 'All Copied!');
+                });
+            } else {
+                showCopySuccess(button, 'All Copied!');
+            }
+        }
+
+        function showCopySuccess(button, message = 'Copied!') {
+            const originalText = button.textContent;
+            button.classList.add('copied');
+            button.textContent = message;
+            button.disabled = true;
+
+            setTimeout(() => {
+                button.classList.remove('copied');
+                button.textContent = originalText;
+                button.disabled = false;
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
