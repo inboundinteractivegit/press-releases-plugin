@@ -5,6 +5,31 @@ All notable changes to the Press Releases Manager plugin will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-09-21
+
+### Added
+- **🎯 Beginner-Friendly Press Release Interface** - Complete redesign of "Add New Press Release"
+- **📊 Live Statistics Dashboard** - Real-time URL count and status updates
+- **🗂️ Tabbed Interface** - Three easy methods: Individual URLs, Bulk Import, Manage URLs
+- **✅ URL Validation System** - Test URLs before adding with instant feedback
+- **👁️ Live Preview** - See URLs as you add them with working links
+- **⚙️ URL Management** - Edit, delete, and organize existing URLs visually
+- **📋 Enhanced Bulk Import** - Preview before import with error detection
+- **🎨 Visual URL Cards** - Organized display with titles and actions
+- **📚 Complete Beginner Guide** - Step-by-step tutorial for new users
+
+### Improved
+- **User Experience** - No technical knowledge required for press release creation
+- **Error Prevention** - Validation and preview before saving
+- **URL Organization** - Title-based organization instead of "Untitled URL #47"
+- **Visual Feedback** - Color-coded new vs existing URLs
+- **Save System** - Enhanced to handle both individual and bulk URL data
+
+### Fixed
+- Better error handling for invalid URLs
+- Improved data sanitization for security
+- Enhanced form submission handling
+
 ## [1.2.0] - 2025-09-21
 
 ### Added

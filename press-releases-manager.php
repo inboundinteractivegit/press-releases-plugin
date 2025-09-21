@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Press Releases Manager
  * Description: Manage press releases with AJAX-loaded URLs in accordion format
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Inbound Interactive
  */
 
@@ -295,27 +295,317 @@ if (is_admin()) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'press_release_urls';
 
-        $url_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $table_name WHERE press_release_id = %d",
+        // Get existing URLs
+        $existing_urls = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, url, title FROM $table_name WHERE press_release_id = %d ORDER BY id ASC",
             $post->ID
         ));
 
         wp_nonce_field('save_press_release_urls', 'press_release_urls_nonce');
         ?>
-        <div class="press-release-urls-admin">
-            <p><strong>Current URLs: <?php echo $url_count; ?></strong></p>
+        <div class="press-release-urls-admin" id="press-release-urls-admin">
+            <style>
+                .url-manager-tabs { border-bottom: 1px solid #ddd; margin-bottom: 20px; }
+                .url-manager-tabs button { background: #f1f1f1; border: 1px solid #ddd; border-bottom: none; padding: 10px 20px; cursor: pointer; margin-right: 5px; }
+                .url-manager-tabs button.active { background: #fff; }
+                .tab-content { display: none; }
+                .tab-content.active { display: block; }
+                .url-item { background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 10px; position: relative; }
+                .url-item.new { background: #e8f5e8; border-color: #4CAF50; }
+                .url-item .url-title { font-weight: bold; margin-bottom: 5px; }
+                .url-item .url-link { color: #666; word-break: break-all; }
+                .url-item .url-actions { position: absolute; top: 10px; right: 10px; }
+                .url-item .url-actions button { margin-left: 5px; padding: 5px 10px; cursor: pointer; }
+                .add-url-form { background: #fff; border: 2px dashed #ddd; border-radius: 5px; padding: 20px; margin-bottom: 20px; }
+                .add-url-form.active { border-color: #2196F3; background: #f0f8ff; }
+                .form-row { margin-bottom: 15px; }
+                .form-row label { display: block; font-weight: bold; margin-bottom: 5px; }
+                .form-row input[type="url"], .form-row input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px; }
+                .url-preview { background: #e7f3ff; padding: 10px; border-radius: 3px; margin-top: 10px; display: none; }
+                .url-stats { background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px; }
+                .bulk-import-area { background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+                .import-preview { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 3px; margin-top: 10px; max-height: 200px; overflow-y: auto; }
+                .error { color: #d63638; }
+                .success { color: #00a32a; }
+            </style>
 
-            <h4>Bulk Import URLs</h4>
-            <p>Paste URLs (one per line) or URL,Title pairs separated by commas:</p>
-            <textarea name="bulk_urls" rows="10" cols="80" placeholder="https://example.com/url1&#10;https://example.com/url2,Page Title&#10;https://example.com/url3"></textarea>
+            <!-- URL Statistics -->
+            <div class="url-stats">
+                <h3>📊 URL Statistics</h3>
+                <p><strong>Total URLs:</strong> <span id="url-count"><?php echo count($existing_urls); ?></span></p>
+                <p><strong>Status:</strong> <span id="url-status"><?php echo count($existing_urls) > 0 ? 'Ready to display' : 'No URLs added yet'; ?></span></p>
+            </div>
 
-            <p>
-                <label>
-                    <input type="checkbox" name="replace_urls" value="1">
-                    Replace existing URLs (otherwise, new URLs will be added)
-                </label>
-            </p>
+            <!-- Tab Navigation -->
+            <div class="url-manager-tabs">
+                <button type="button" class="tab-btn active" data-tab="individual">➕ Add Individual URLs</button>
+                <button type="button" class="tab-btn" data-tab="bulk">📋 Bulk Import</button>
+                <button type="button" class="tab-btn" data-tab="manage">⚙️ Manage URLs (<?php echo count($existing_urls); ?>)</button>
+            </div>
+
+            <!-- Tab 1: Individual URL Entry -->
+            <div class="tab-content active" id="tab-individual">
+                <div class="add-url-form" id="add-url-form">
+                    <h3>➕ Add New URL</h3>
+                    <div class="form-row">
+                        <label for="new-url">🔗 URL (Required)</label>
+                        <input type="url" id="new-url" placeholder="https://example.com/article" required>
+                        <small>Enter the full URL including https://</small>
+                    </div>
+                    <div class="form-row">
+                        <label for="new-title">📝 Title (Optional)</label>
+                        <input type="text" id="new-title" placeholder="Article title or description">
+                        <small>If empty, we'll try to get the title automatically</small>
+                    </div>
+                    <div class="url-preview" id="url-preview">
+                        <strong>Preview:</strong> <span id="preview-content"></span>
+                    </div>
+                    <p>
+                        <button type="button" id="add-url-btn" class="button button-primary">➕ Add URL</button>
+                        <button type="button" id="validate-url-btn" class="button">✅ Validate URL</button>
+                    </p>
+                </div>
+
+                <div id="new-urls-preview" style="margin-top: 20px;">
+                    <h4>📋 URLs to be Added (<?php echo count($existing_urls); ?> existing + <span id="new-count">0</span> new)</h4>
+                    <div id="new-urls-list"></div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Bulk Import -->
+            <div class="tab-content" id="tab-bulk">
+                <div class="bulk-import-area">
+                    <h3>📋 Bulk Import URLs</h3>
+                    <p><strong>Format Options:</strong></p>
+                    <ul>
+                        <li><strong>URL only:</strong> <code>https://example.com/article1</code></li>
+                        <li><strong>URL with title:</strong> <code>https://example.com/article2, Article Title</code></li>
+                        <li><strong>Mixed format is OK!</strong></li>
+                    </ul>
+
+                    <div class="form-row">
+                        <label for="bulk-urls">Paste your URLs (one per line):</label>
+                        <textarea id="bulk-urls" rows="8" cols="80" placeholder="https://example.com/url1&#10;https://example.com/url2, Page Title&#10;https://example.com/url3"></textarea>
+                    </div>
+
+                    <p>
+                        <button type="button" id="preview-bulk-btn" class="button button-primary">👀 Preview Import</button>
+                        <button type="button" id="clear-bulk-btn" class="button">🗑️ Clear</button>
+                    </p>
+
+                    <div id="bulk-preview" class="import-preview" style="display: none;">
+                        <h4>📋 Import Preview</h4>
+                        <div id="bulk-preview-content"></div>
+                        <p>
+                            <button type="button" id="confirm-bulk-btn" class="button button-primary">✅ Add These URLs</button>
+                        </p>
+                    </div>
+
+                    <div class="form-row">
+                        <label>
+                            <input type="checkbox" name="replace_urls" value="1">
+                            🔄 Replace all existing URLs (otherwise, new URLs will be added)
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Manage Existing URLs -->
+            <div class="tab-content" id="tab-manage">
+                <div id="existing-urls-list">
+                    <h3>⚙️ Manage Existing URLs</h3>
+                    <?php if (empty($existing_urls)): ?>
+                        <p style="text-align: center; color: #666; padding: 40px;">
+                            📭 No URLs added yet.<br>
+                            <small>Switch to the "Add Individual URLs" tab to get started!</small>
+                        </p>
+                    <?php else: ?>
+                        <?php foreach ($existing_urls as $index => $url_data): ?>
+                            <div class="url-item" data-url-id="<?php echo $url_data->id; ?>">
+                                <div class="url-title"><?php echo !empty($url_data->title) ? esc_html($url_data->title) : 'Untitled URL #' . ($index + 1); ?></div>
+                                <div class="url-link">
+                                    <a href="<?php echo esc_url($url_data->url); ?>" target="_blank" rel="noopener">
+                                        <?php echo esc_html($url_data->url); ?> ↗️
+                                    </a>
+                                </div>
+                                <div class="url-actions">
+                                    <button type="button" class="button button-small edit-url-btn" data-url-id="<?php echo $url_data->id; ?>">✏️ Edit</button>
+                                    <button type="button" class="button button-small delete-url-btn" data-url-id="<?php echo $url_data->id; ?>">🗑️ Delete</button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Hidden field for storing URL data -->
+            <input type="hidden" name="url_data_json" id="url-data-json" value="">
+            <textarea name="bulk_urls" id="bulk_urls_hidden" style="display: none;"></textarea>
         </div>
+
+        <script>
+        jQuery(document).ready(function($) {
+            var newUrls = [];
+            var urlIdCounter = 0;
+
+            // Tab switching
+            $('.tab-btn').click(function() {
+                $('.tab-btn').removeClass('active');
+                $('.tab-content').removeClass('active');
+                $(this).addClass('active');
+                $('#tab-' + $(this).data('tab')).addClass('active');
+            });
+
+            // URL validation
+            $('#validate-url-btn').click(function() {
+                var url = $('#new-url').val();
+                if (url) {
+                    $('#url-preview').show();
+                    $('#preview-content').html('🔍 Checking: <a href="' + url + '" target="_blank">' + url + '</a>');
+
+                    // Simple validation
+                    try {
+                        new URL(url);
+                        $('#preview-content').html('✅ Valid URL: <a href="' + url + '" target="_blank">' + url + '</a>');
+                    } catch (e) {
+                        $('#preview-content').html('❌ Invalid URL format. Please check and try again.');
+                    }
+                }
+            });
+
+            // Add individual URL
+            $('#add-url-btn').click(function() {
+                var url = $('#new-url').val();
+                var title = $('#new-title').val();
+
+                if (!url) {
+                    alert('Please enter a URL');
+                    return;
+                }
+
+                // Validate URL
+                try {
+                    new URL(url);
+                } catch (e) {
+                    alert('Please enter a valid URL (including https://)');
+                    return;
+                }
+
+                // Add to new URLs list
+                urlIdCounter++;
+                var newUrl = {
+                    id: 'new_' + urlIdCounter,
+                    url: url,
+                    title: title || 'Untitled URL'
+                };
+                newUrls.push(newUrl);
+
+                // Update display
+                updateNewUrlsDisplay();
+                updateUrlStats();
+
+                // Clear form
+                $('#new-url').val('');
+                $('#new-title').val('');
+                $('#url-preview').hide();
+            });
+
+            // Bulk import preview
+            $('#preview-bulk-btn').click(function() {
+                var bulkText = $('#bulk-urls').val();
+                if (!bulkText.trim()) {
+                    alert('Please paste some URLs first');
+                    return;
+                }
+
+                var lines = bulkText.trim().split('\n');
+                var previewHtml = '';
+                var validCount = 0;
+                var errorCount = 0;
+
+                lines.forEach(function(line, index) {
+                    line = line.trim();
+                    if (!line) return;
+
+                    var url, title;
+                    if (line.includes(',')) {
+                        var parts = line.split(',', 2);
+                        url = parts[0].trim();
+                        title = parts[1].trim();
+                    } else {
+                        url = line;
+                        title = 'Untitled URL #' + (index + 1);
+                    }
+
+                    try {
+                        new URL(url);
+                        previewHtml += '<div style="color: #00a32a;">✅ ' + title + ' - ' + url + '</div>';
+                        validCount++;
+                    } catch (e) {
+                        previewHtml += '<div style="color: #d63638;">❌ Invalid URL: ' + line + '</div>';
+                        errorCount++;
+                    }
+                });
+
+                $('#bulk-preview-content').html(
+                    '<p><strong>📊 Summary:</strong> ' + validCount + ' valid URLs, ' + errorCount + ' errors</p>' +
+                    previewHtml
+                );
+                $('#bulk-preview').show();
+            });
+
+            // Confirm bulk import
+            $('#confirm-bulk-btn').click(function() {
+                $('#bulk_urls_hidden').val($('#bulk-urls').val());
+                alert('URLs will be added when you save/update this press release.');
+                $('#bulk-preview').hide();
+            });
+
+            // Update displays
+            function updateNewUrlsDisplay() {
+                var html = '';
+                newUrls.forEach(function(urlData, index) {
+                    html += '<div class="url-item new">' +
+                        '<div class="url-title">' + urlData.title + '</div>' +
+                        '<div class="url-link"><a href="' + urlData.url + '" target="_blank">' + urlData.url + ' ↗️</a></div>' +
+                        '<div class="url-actions">' +
+                            '<button type="button" class="button button-small remove-new-url" data-index="' + index + '">🗑️ Remove</button>' +
+                        '</div>' +
+                    '</div>';
+                });
+                $('#new-urls-list').html(html);
+                $('#new-count').text(newUrls.length);
+            }
+
+            function updateUrlStats() {
+                var existingCount = <?php echo count($existing_urls); ?>;
+                var totalCount = existingCount + newUrls.length;
+                $('#url-count').text(totalCount);
+                $('#url-status').text(totalCount > 0 ? 'Ready to display (' + newUrls.length + ' pending save)' : 'No URLs added yet');
+            }
+
+            // Remove new URL
+            $(document).on('click', '.remove-new-url', function() {
+                var index = $(this).data('index');
+                newUrls.splice(index, 1);
+                updateNewUrlsDisplay();
+                updateUrlStats();
+            });
+
+            // Clear bulk textarea
+            $('#clear-bulk-btn').click(function() {
+                $('#bulk-urls').val('');
+                $('#bulk-preview').hide();
+            });
+
+            // Save new URLs data to hidden field before form submission
+            $('form').submit(function() {
+                if (newUrls.length > 0) {
+                    $('#url-data-json').val(JSON.stringify(newUrls));
+                }
+            });
+        });
+        </script>
         <?php
     }
 
@@ -333,44 +623,64 @@ if (is_admin()) {
             return;
         }
 
-        if (empty($_POST['bulk_urls'])) {
-            return;
-        }
-
         global $wpdb;
         $table_name = $wpdb->prefix . 'press_release_urls';
 
-        // Replace existing URLs if requested
-        if (isset($_POST['replace_urls']) && $_POST['replace_urls'] == '1') {
-            $wpdb->delete($table_name, array('press_release_id' => $post_id));
+        // Handle individual URLs from JSON data (new interface)
+        if (!empty($_POST['url_data_json'])) {
+            $new_urls = json_decode(stripslashes($_POST['url_data_json']), true);
+            if (is_array($new_urls)) {
+                foreach ($new_urls as $url_data) {
+                    if (filter_var($url_data['url'], FILTER_VALIDATE_URL)) {
+                        $wpdb->insert(
+                            $table_name,
+                            array(
+                                'press_release_id' => $post_id,
+                                'url' => sanitize_url($url_data['url']),
+                                'title' => sanitize_text_field($url_data['title'])
+                            ),
+                            array('%d', '%s', '%s')
+                        );
+                    }
+                }
+            }
         }
 
-        $urls_text = sanitize_textarea_field($_POST['bulk_urls']);
-        $urls_lines = explode("\n", $urls_text);
-
-        foreach ($urls_lines as $line) {
-            $line = trim($line);
-            if (empty($line)) continue;
-
-            if (strpos($line, ',') !== false) {
-                $parts = array_map('trim', explode(',', $line, 2));
-                $url = $parts[0];
-                $title = isset($parts[1]) ? $parts[1] : '';
-            } else {
-                $url = $line;
-                $title = '';
+        // Handle bulk URLs (legacy and new bulk import)
+        $bulk_urls_field = !empty($_POST['bulk_urls']) ? $_POST['bulk_urls'] : $_POST['bulk_urls_hidden'];
+        if (!empty($bulk_urls_field)) {
+            // Replace existing URLs if requested
+            if (isset($_POST['replace_urls']) && $_POST['replace_urls'] == '1') {
+                $wpdb->delete($table_name, array('press_release_id' => $post_id));
             }
 
-            if (filter_var($url, FILTER_VALIDATE_URL)) {
-                $wpdb->insert(
-                    $table_name,
-                    array(
-                        'press_release_id' => $post_id,
-                        'url' => $url,
-                        'title' => $title
-                    ),
-                    array('%d', '%s', '%s')
-                );
+            $urls_text = sanitize_textarea_field($bulk_urls_field);
+            $urls_lines = explode("\n", $urls_text);
+
+            foreach ($urls_lines as $line) {
+                $line = trim($line);
+                if (empty($line)) continue;
+
+                if (strpos($line, ',') !== false) {
+                    $parts = array_map('trim', explode(',', $line, 2));
+                    $url = $parts[0];
+                    $title = isset($parts[1]) ? $parts[1] : '';
+                } else {
+                    $url = $line;
+                    $title = '';
+                }
+
+                if (filter_var($url, FILTER_VALIDATE_URL)) {
+                    $wpdb->insert(
+                        $table_name,
+                        array(
+                            'press_release_id' => $post_id,
+                            'url' => sanitize_url($url),
+                            'title' => sanitize_text_field($title)
+                        ),
+                        array('%d', '%s', '%s')
+                    );
+                }
             }
         }
     }
