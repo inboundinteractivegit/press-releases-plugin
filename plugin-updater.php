@@ -122,7 +122,7 @@ class PressReleasesUpdater {
             'name' => 'Press Releases Manager',
             'slug' => dirname($this->plugin_slug),
             'version' => $remote_version,
-            'author' => 'Your Name',
+            'author' => 'Inbound Interactive',
             'homepage' => $this->get_github_repo_url(),
             'requires' => '5.0',
             'tested' => get_bloginfo('version'),

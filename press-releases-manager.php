@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Press Releases Manager
  * Description: Manage press releases with AJAX-loaded URLs in accordion format
- * Version: 1.1.0
- * Author: Your Name
+ * Version: 1.2.0
+ * Author: Inbound Interactive
  */
 
 // Prevent direct access
@@ -144,7 +144,16 @@ class PressReleasesManager {
         $atts = shortcode_atts(array(
             'limit' => -1,
             'orderby' => 'date',
-            'order' => 'DESC'
+            'order' => 'DESC',
+            'style' => 'accordion',
+            'show_date' => 'yes',
+            'show_count' => 'yes',
+            'show_description' => 'yes',
+            'title_tag' => 'h3',
+            'excerpt_length' => 0,
+            'specific_releases' => '',
+            'exclude_releases' => '',
+            'search' => 'yes'
         ), $atts);
 
         $args = array(
@@ -154,6 +163,18 @@ class PressReleasesManager {
             'order' => $atts['order'],
             'post_status' => 'publish'
         );
+
+        // Handle specific releases
+        if (!empty($atts['specific_releases'])) {
+            $specific_ids = array_map('trim', explode(',', $atts['specific_releases']));
+            $args['post__in'] = $specific_ids;
+        }
+
+        // Handle excluded releases
+        if (!empty($atts['exclude_releases'])) {
+            $exclude_ids = array_map('trim', explode(',', $atts['exclude_releases']));
+            $args['post__not_in'] = $exclude_ids;
+        }
 
         $press_releases = new WP_Query($args);
 
@@ -165,8 +186,19 @@ class PressReleasesManager {
         $table_name = $wpdb->prefix . 'press_release_urls';
 
         ob_start();
+
+        // Add search box if enabled
+        if ($atts['search'] === 'yes') {
+            ?>
+            <div class="press-releases-search">
+                <input type="text" placeholder="Search press releases..." class="press-release-search-input">
+                <button class="press-release-search-btn">Search</button>
+                <button class="press-release-clear-btn">Clear</button>
+            </div>
+            <?php
+        }
         ?>
-        <div class="press-releases-container">
+        <div class="press-releases-container" data-style="<?php echo esc_attr($atts['style']); ?>">
             <?php while ($press_releases->have_posts()) : $press_releases->the_post(); ?>
                 <?php
                 $post_id = get_the_ID();
@@ -177,17 +209,27 @@ class PressReleasesManager {
                 ?>
                 <div class="press-release-item" data-release-id="<?php echo $post_id; ?>">
                     <div class="accordion-header">
-                        <h3 class="release-title"><?php the_title(); ?></h3>
+                        <<?php echo esc_attr($atts['title_tag']); ?> class="release-title"><?php the_title(); ?></<?php echo esc_attr($atts['title_tag']); ?>>
                         <div class="release-meta">
-                            <span class="release-date"><?php echo get_the_date(); ?></span>
-                            <span class="url-count">(<?php echo $url_count; ?> URLs)</span>
+                            <?php if ($atts['show_date'] === 'yes') : ?>
+                                <span class="release-date"><?php echo get_the_date(); ?></span>
+                            <?php endif; ?>
+                            <?php if ($atts['show_count'] === 'yes') : ?>
+                                <span class="url-count">(<?php echo $url_count; ?> URLs)</span>
+                            <?php endif; ?>
                             <span class="toggle-icon">+</span>
                         </div>
                     </div>
                     <div class="accordion-content">
-                        <?php if (get_the_content()) : ?>
+                        <?php if ($atts['show_description'] === 'yes' && (get_the_content() || $atts['excerpt_length'] > 0)) : ?>
                             <div class="release-description">
-                                <?php the_content(); ?>
+                                <?php
+                                if ($atts['excerpt_length'] > 0) {
+                                    echo wp_trim_words(get_the_content(), $atts['excerpt_length'], '...');
+                                } else {
+                                    the_content();
+                                }
+                                ?>
                             </div>
                         <?php endif; ?>
                         <div class="urls-container">
@@ -236,6 +278,7 @@ new PressReleasesManager();
 if (is_admin()) {
     add_action('add_meta_boxes', 'add_press_release_meta_boxes');
     add_action('save_post', 'save_press_release_urls');
+    add_action('admin_menu', 'add_shortcode_builder_menu');
 
     function add_press_release_meta_boxes() {
         add_meta_box(
@@ -330,6 +373,234 @@ if (is_admin()) {
                 );
             }
         }
+    }
+
+    function add_shortcode_builder_menu() {
+        add_submenu_page(
+            'edit.php?post_type=press_release',
+            'Shortcode Builder',
+            'Shortcode Builder',
+            'manage_options',
+            'press-release-shortcode-builder',
+            'display_shortcode_builder_page'
+        );
+    }
+
+    function display_shortcode_builder_page() {
+        ?>
+        <div class="wrap">
+            <h1>📋 Press Releases Shortcode Builder</h1>
+            <p>Create custom shortcodes for displaying your press releases. Simply select your options below and copy the generated shortcode!</p>
+
+            <div style="background: #f1f1f1; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h2>🎯 Quick Start</h2>
+                <p><strong>Copy this basic shortcode to any page or post:</strong></p>
+                <code style="background: #fff; padding: 10px; display: block; font-size: 16px;">[press_releases]</code>
+            </div>
+
+            <form id="shortcode-builder" style="background: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                <h2>🛠️ Custom Shortcode Builder</h2>
+
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">Number of Press Releases</th>
+                        <td>
+                            <select name="limit" id="limit">
+                                <option value="-1">Show All</option>
+                                <option value="1">1</option>
+                                <option value="3">3</option>
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                            </select>
+                            <p class="description">How many press releases to display</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Order By</th>
+                        <td>
+                            <select name="orderby" id="orderby">
+                                <option value="date">Date Created</option>
+                                <option value="title">Title (A-Z)</option>
+                                <option value="modified">Last Modified</option>
+                                <option value="menu_order">Custom Order</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Sort Order</th>
+                        <td>
+                            <select name="order" id="order">
+                                <option value="DESC">Newest First</option>
+                                <option value="ASC">Oldest First</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Show Date</th>
+                        <td>
+                            <label><input type="radio" name="show_date" value="yes" checked> Yes</label>
+                            <label><input type="radio" name="show_date" value="no"> No</label>
+                            <p class="description">Display the publication date</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Show URL Count</th>
+                        <td>
+                            <label><input type="radio" name="show_count" value="yes" checked> Yes</label>
+                            <label><input type="radio" name="show_count" value="no"> No</label>
+                            <p class="description">Show how many URLs each press release has</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Show Description</th>
+                        <td>
+                            <label><input type="radio" name="show_description" value="yes" checked> Yes</label>
+                            <label><input type="radio" name="show_description" value="no"> No</label>
+                            <p class="description">Display the press release content/description</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Description Length</th>
+                        <td>
+                            <input type="number" name="excerpt_length" id="excerpt_length" value="0" min="0" max="200">
+                            <p class="description">Limit description to X words (0 = show full content)</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Search Box</th>
+                        <td>
+                            <label><input type="radio" name="search" value="yes" checked> Yes</label>
+                            <label><input type="radio" name="search" value="no"> No</label>
+                            <p class="description">Add a search box above the press releases</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Title HTML Tag</th>
+                        <td>
+                            <select name="title_tag" id="title_tag">
+                                <option value="h1">H1</option>
+                                <option value="h2">H2</option>
+                                <option value="h3" selected>H3</option>
+                                <option value="h4">H4</option>
+                                <option value="h5">H5</option>
+                                <option value="h6">H6</option>
+                            </select>
+                            <p class="description">HTML heading tag for press release titles</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <h3>🎯 Advanced Options</h3>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">Specific Press Releases</th>
+                        <td>
+                            <input type="text" name="specific_releases" id="specific_releases" placeholder="1,5,10" style="width: 300px;">
+                            <p class="description">Show only specific press releases (enter IDs separated by commas)</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Exclude Press Releases</th>
+                        <td>
+                            <input type="text" name="exclude_releases" id="exclude_releases" placeholder="2,7,15" style="width: 300px;">
+                            <p class="description">Hide specific press releases (enter IDs separated by commas)</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <p><button type="button" id="generate-shortcode" class="button button-primary">🚀 Generate Shortcode</button></p>
+            </form>
+
+            <div id="generated-shortcode" style="margin-top: 20px; display: none;">
+                <h2>📋 Your Generated Shortcode</h2>
+                <div style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+                    <p><strong>Copy this shortcode:</strong></p>
+                    <textarea id="shortcode-output" style="width: 100%; height: 60px; font-family: monospace;" readonly></textarea>
+                    <p><button type="button" id="copy-shortcode" class="button">📋 Copy to Clipboard</button></p>
+                </div>
+
+                <div style="background: #e7f3ff; padding: 15px; border-left: 4px solid #2196F3; margin-top: 15px;">
+                    <h3>📝 How to Use:</h3>
+                    <ol>
+                        <li><strong>Copy</strong> the shortcode above</li>
+                        <li><strong>Go to</strong> any page or post editor</li>
+                        <li><strong>Paste</strong> the shortcode where you want the press releases to appear</li>
+                        <li><strong>Update/Publish</strong> the page</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin-top: 20px;">
+                <h3>💡 Pro Tips:</h3>
+                <ul>
+                    <li><strong>Test first:</strong> Try the basic <code>[press_releases]</code> shortcode before customizing</li>
+                    <li><strong>Page vs Post:</strong> Works on both pages and posts</li>
+                    <li><strong>Multiple shortcodes:</strong> You can use different shortcodes on different pages</li>
+                    <li><strong>Styling:</strong> The display will match your theme's styling</li>
+                </ul>
+            </div>
+        </div>
+
+        <script>
+        jQuery(document).ready(function($) {
+            $('#generate-shortcode').click(function() {
+                var shortcode = '[press_releases';
+                var params = [];
+
+                // Collect all form values
+                var limit = $('#limit').val();
+                if (limit !== '-1') params.push('limit="' + limit + '"');
+
+                var orderby = $('#orderby').val();
+                if (orderby !== 'date') params.push('orderby="' + orderby + '"');
+
+                var order = $('#order').val();
+                if (order !== 'DESC') params.push('order="' + order + '"');
+
+                var showDate = $('input[name="show_date"]:checked').val();
+                if (showDate !== 'yes') params.push('show_date="' + showDate + '"');
+
+                var showCount = $('input[name="show_count"]:checked').val();
+                if (showCount !== 'yes') params.push('show_count="' + showCount + '"');
+
+                var showDesc = $('input[name="show_description"]:checked').val();
+                if (showDesc !== 'yes') params.push('show_description="' + showDesc + '"');
+
+                var excerptLength = $('#excerpt_length').val();
+                if (excerptLength && excerptLength !== '0') params.push('excerpt_length="' + excerptLength + '"');
+
+                var search = $('input[name="search"]:checked').val();
+                if (search !== 'yes') params.push('search="' + search + '"');
+
+                var titleTag = $('#title_tag').val();
+                if (titleTag !== 'h3') params.push('title_tag="' + titleTag + '"');
+
+                var specific = $('#specific_releases').val();
+                if (specific) params.push('specific_releases="' + specific + '"');
+
+                var exclude = $('#exclude_releases').val();
+                if (exclude) params.push('exclude_releases="' + exclude + '"');
+
+                if (params.length > 0) {
+                    shortcode += ' ' + params.join(' ');
+                }
+                shortcode += ']';
+
+                $('#shortcode-output').val(shortcode);
+                $('#generated-shortcode').show();
+            });
+
+            $('#copy-shortcode').click(function() {
+                $('#shortcode-output').select();
+                document.execCommand('copy');
+                $(this).text('✅ Copied!');
+                setTimeout(function() {
+                    $('#copy-shortcode').text('📋 Copy to Clipboard');
+                }, 2000);
+            });
+        });
+        </script>
+        <?php
     }
 }
 ?>
