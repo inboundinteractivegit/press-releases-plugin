@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Press Releases Manager
  * Description: Manage press releases with AJAX-loaded URLs in accordion format
- * Version: 1.0
+ * Version: 1.1.0
  * Author: Your Name
  */
 
