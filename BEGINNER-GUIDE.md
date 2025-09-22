@@ -58,6 +58,12 @@
 - **Edit any URL** without starting over
 - **Delete mistakes** with one click
 
+### **✅ SEO Optimized (New in v1.4.0!)**
+- **301 redirects** automatically consolidate SEO power
+- **No duplicate content** issues
+- **Search engine friendly** sitemap exclusion
+- **Better rankings** with concentrated link equity
+
 ## 📊 **What You'll See**
 
 ### **Statistics Dashboard**
@@ -131,9 +137,29 @@ Status: Ready to display (3 pending save)
 - **Check the preview** before saving
 - **Use the validation** button to test URLs
 
+### **SEO Settings (New!)**
+- **Go to Press Releases → Settings** to configure SEO options
+- **Auto-detection** finds your main press releases page automatically
+- **Custom redirects** available if needed
+
 ### **Common Fixes**
 - **URLs not showing?** Make sure you saved the press release
 - **Broken links?** Use the validate button to check URLs
 - **Can't find interface?** Look for tabs: Add Individual URLs, Bulk Import, Manage URLs
+- **SEO concerns?** Individual press release pages now automatically redirect to your main page
 
-**🎉 That's it! You're ready to create professional press release displays without any technical knowledge!**
+## 🚀 **What's New in Version 1.4.0**
+
+### **Major SEO Improvements**
+- **🔄 301 Redirects:** Individual press release pages redirect to your main page
+- **🗺️ Sitemap Exclusion:** No more duplicate content in search engines
+- **🔍 Search Bar:** Now hidden by default for cleaner appearance
+- **📊 Link Equity:** All SEO power concentrated on one authoritative page
+
+### **Why This Matters**
+- **Better search rankings** with consolidated SEO power
+- **No duplicate content penalties** from search engines
+- **Cleaner user experience** with direct navigation
+- **Professional SEO structure** without technical work
+
+**🎉 That's it! You're ready to create professional, SEO-optimized press release displays without any technical knowledge!**

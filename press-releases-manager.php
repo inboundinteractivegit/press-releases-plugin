@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Press Releases Manager
  * Description: Manage press releases with AJAX-loaded URLs in accordion format
- * Version: 1.3.0
+ * Version: 1.4.0
  * Author: Inbound Interactive
  */
 
@@ -15,15 +15,20 @@ class PressReleasesManager {
 
     public function __construct() {
         add_action('init', array($this, 'init'));
+        add_action('template_redirect', array($this, 'redirect_individual_press_releases'));
+        add_filter('wp_sitemaps_post_types', array($this, 'exclude_from_sitemap'));
+        add_filter('wpseo_sitemap_exclude_post_type', array($this, 'exclude_from_yoast_sitemap'), 10, 2);
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
         add_action('wp_ajax_load_press_release_urls', array($this, 'ajax_load_urls'));
         add_action('wp_ajax_nopriv_load_press_release_urls', array($this, 'ajax_load_urls'));
         add_shortcode('press_releases', array($this, 'shortcode_display'));
 
-        // Enable auto-updates
+        // Enable auto-updates and admin features
         if (is_admin()) {
             require_once plugin_dir_path(__FILE__) . 'plugin-updater.php';
             new PressReleasesUpdater(__FILE__, 'inboundinteractivegit', 'press-releases-plugin');
+            add_action('admin_notices', array($this, 'show_seo_update_notice'));
+            add_action('wp_ajax_dismiss_seo_notice', array($this, 'dismiss_seo_notice'));
         }
     }
 
@@ -73,6 +78,140 @@ class PressReleasesManager {
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+    }
+
+    /**
+     * Redirect individual press release pages to main press releases page
+     */
+    public function redirect_individual_press_releases() {
+        if (is_singular('press_release')) {
+            // Get the main press releases page URL
+            $redirect_url = $this->get_press_releases_page_url();
+
+            if ($redirect_url) {
+                wp_redirect($redirect_url, 301);
+                exit();
+            }
+        }
+    }
+
+    /**
+     * Get the URL of the page containing the press releases shortcode
+     */
+    public function get_press_releases_page_url() {
+        // First check if there's a custom option set
+        $custom_url = get_option('press_releases_redirect_url');
+        if ($custom_url) {
+            return $custom_url;
+        }
+
+        // Search for a page containing the [press_releases] shortcode
+        $pages = get_posts(array(
+            'post_type' => array('page', 'post'),
+            'post_status' => 'publish',
+            'posts_per_page' => -1,
+            'meta_query' => array(
+                array(
+                    'key' => '_wp_page_template',
+                    'compare' => 'EXISTS'
+                )
+            )
+        ));
+
+        foreach ($pages as $page) {
+            if (has_shortcode($page->post_content, 'press_releases')) {
+                return get_permalink($page->ID);
+            }
+        }
+
+        // Fallback: search all published pages/posts for the shortcode
+        global $wpdb;
+        $result = $wpdb->get_var(
+            "SELECT ID FROM {$wpdb->posts}
+             WHERE post_status = 'publish'
+             AND (post_type = 'page' OR post_type = 'post')
+             AND post_content LIKE '%[press_releases%'
+             LIMIT 1"
+        );
+
+        if ($result) {
+            return get_permalink($result);
+        }
+
+        // Ultimate fallback: redirect to home page
+        return home_url('/');
+    }
+
+    /**
+     * Exclude press releases from WordPress core sitemaps
+     */
+    public function exclude_from_sitemap($post_types) {
+        unset($post_types['press_release']);
+        return $post_types;
+    }
+
+    /**
+     * Exclude press releases from Yoast SEO sitemaps
+     */
+    public function exclude_from_yoast_sitemap($excluded, $post_type) {
+        if ($post_type === 'press_release') {
+            return true;
+        }
+        return $excluded;
+    }
+
+    /**
+     * Show admin notice about SEO improvements in v1.4.0
+     */
+    public function show_seo_update_notice() {
+        if (get_option('press_releases_seo_notice_dismissed')) {
+            return;
+        }
+
+        $screen = get_current_screen();
+        if (!$screen || !in_array($screen->id, ['edit-press_release', 'press_release', 'press_release_page_press-releases-settings'])) {
+            return;
+        }
+
+        ?>
+        <div class="notice notice-success is-dismissible" id="press-releases-seo-notice">
+            <h3>🚀 Press Releases v1.4.0 - Major SEO Improvements!</h3>
+            <p><strong>Your press releases are now SEO-optimized:</strong></p>
+            <ul style="margin-left: 20px;">
+                <li>✅ <strong>301 Redirects:</strong> Individual press release pages redirect to your main page</li>
+                <li>✅ <strong>Sitemap Exclusion:</strong> Search engines won't index duplicate pages</li>
+                <li>✅ <strong>Search Bar Hidden:</strong> Cleaner default appearance</li>
+                <li>✅ <strong>Link Equity Consolidation:</strong> All SEO power concentrated on one page</li>
+            </ul>
+            <p>
+                <a href="<?php echo admin_url('edit.php?post_type=press_release&page=press-releases-settings'); ?>" class="button button-primary">⚙️ View Settings</a>
+                <button type="button" class="button" id="dismiss-seo-notice">Dismiss</button>
+            </p>
+        </div>
+
+        <script>
+        jQuery(document).ready(function($) {
+            $('#dismiss-seo-notice, .notice-dismiss').click(function() {
+                $.post(ajaxurl, {
+                    action: 'dismiss_seo_notice',
+                    nonce: '<?php echo wp_create_nonce('dismiss_seo_notice'); ?>'
+                });
+                $('#press-releases-seo-notice').fadeOut();
+            });
+        });
+        </script>
+        <?php
+    }
+
+    /**
+     * Dismiss SEO update notice
+     */
+    public function dismiss_seo_notice() {
+        if (!wp_verify_nonce($_POST['nonce'], 'dismiss_seo_notice')) {
+            wp_die('Security check failed');
+        }
+        update_option('press_releases_seo_notice_dismissed', true);
+        wp_die();
     }
 
     /**
@@ -153,7 +292,7 @@ class PressReleasesManager {
             'excerpt_length' => 0,
             'specific_releases' => '',
             'exclude_releases' => '',
-            'search' => 'yes'
+            'search' => 'no'
         ), $atts);
 
         $args = array(
@@ -279,6 +418,8 @@ if (is_admin()) {
     add_action('add_meta_boxes', 'add_press_release_meta_boxes');
     add_action('save_post', 'save_press_release_urls');
     add_action('admin_menu', 'add_shortcode_builder_menu');
+    add_action('admin_menu', 'add_settings_menu');
+    add_action('admin_init', 'register_settings');
 
     function add_press_release_meta_boxes() {
         add_meta_box(
@@ -779,8 +920,8 @@ if (is_admin()) {
                     <tr>
                         <th scope="row">Search Box</th>
                         <td>
-                            <label><input type="radio" name="search" value="yes" checked> Yes</label>
-                            <label><input type="radio" name="search" value="no"> No</label>
+                            <label><input type="radio" name="search" value="yes"> Yes</label>
+                            <label><input type="radio" name="search" value="no" checked> No</label>
                             <p class="description">Add a search box above the press releases</p>
                         </td>
                     </tr>
@@ -880,7 +1021,7 @@ if (is_admin()) {
                 if (excerptLength && excerptLength !== '0') params.push('excerpt_length="' + excerptLength + '"');
 
                 var search = $('input[name="search"]:checked').val();
-                if (search !== 'yes') params.push('search="' + search + '"');
+                if (search !== 'no') params.push('search="' + search + '"');
 
                 var titleTag = $('#title_tag').val();
                 if (titleTag !== 'h3') params.push('title_tag="' + titleTag + '"');
@@ -910,6 +1051,98 @@ if (is_admin()) {
             });
         });
         </script>
+        <?php
+    }
+
+    function add_settings_menu() {
+        add_submenu_page(
+            'edit.php?post_type=press_release',
+            'Press Releases Settings',
+            'Settings',
+            'manage_options',
+            'press-releases-settings',
+            'display_settings_page'
+        );
+    }
+
+    function register_settings() {
+        register_setting('press_releases_settings', 'press_releases_redirect_url');
+    }
+
+    function display_settings_page() {
+        $current_url = get_option('press_releases_redirect_url', '');
+        ?>
+        <div class="wrap">
+            <h1>⚙️ Press Releases Settings</h1>
+
+            <div style="background: #e7f3ff; padding: 15px; border-left: 4px solid #2196F3; margin: 20px 0;">
+                <h3>🔄 301 Redirects Active</h3>
+                <p><strong>Individual press release pages now redirect to your main press releases page for better SEO.</strong></p>
+                <p>This eliminates duplicate content and concentrates SEO power on one authoritative page.</p>
+            </div>
+
+            <form method="post" action="options.php">
+                <?php settings_fields('press_releases_settings'); ?>
+
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="press_releases_redirect_url">Redirect Destination URL</label>
+                        </th>
+                        <td>
+                            <input type="url"
+                                   id="press_releases_redirect_url"
+                                   name="press_releases_redirect_url"
+                                   value="<?php echo esc_attr($current_url); ?>"
+                                   placeholder="https://example.com/press-releases/"
+                                   style="width: 400px;" />
+                            <p class="description">
+                                <strong>Leave empty for auto-detection.</strong><br>
+                                The plugin will automatically find the page containing your <code>[press_releases]</code> shortcode.<br>
+                                Only set a custom URL if auto-detection doesn't work or you want to redirect somewhere specific.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+
+                <?php submit_button('Save Settings'); ?>
+            </form>
+
+            <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin-top: 20px;">
+                <h3>🔍 How It Works</h3>
+                <ul>
+                    <li><strong>Auto-Detection:</strong> Finds pages containing <code>[press_releases]</code> shortcode</li>
+                    <li><strong>301 Redirect:</strong> Search engines transfer all SEO value to the main page</li>
+                    <li><strong>User Experience:</strong> Visitors land on the functional press releases page</li>
+                    <li><strong>Fallback:</strong> Redirects to homepage if no press releases page found</li>
+                </ul>
+            </div>
+
+            <div style="background: #d1ecf1; padding: 15px; border-left: 4px solid #17a2b8; margin-top: 20px;">
+                <h3>📊 Current Status</h3>
+                <?php
+                $press_releases_manager = new PressReleasesManager();
+                $detected_url = $press_releases_manager->get_press_releases_page_url();
+                ?>
+                <p><strong>Detected redirect URL:</strong>
+                    <?php if ($detected_url): ?>
+                        <a href="<?php echo esc_url($detected_url); ?>" target="_blank">
+                            <?php echo esc_html($detected_url); ?> ↗️
+                        </a>
+                    <?php else: ?>
+                        <span style="color: #d63638;">No press releases page detected</span>
+                    <?php endif; ?>
+                </p>
+
+                <?php if ($current_url): ?>
+                    <p><strong>Custom redirect URL:</strong>
+                        <a href="<?php echo esc_url($current_url); ?>" target="_blank">
+                            <?php echo esc_html($current_url); ?> ↗️
+                        </a>
+                    </p>
+                <?php endif; ?>
+            </div>
+        </div>
         <?php
     }
 }
