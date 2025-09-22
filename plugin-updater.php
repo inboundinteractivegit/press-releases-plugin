@@ -140,17 +140,17 @@ class PressReleasesUpdater {
         $changelog = $this->get_changelog();
 
         return (object) array(
-            'name' => 'Press Releases Manager',
+            'name' => 'PressStack',
             'slug' => dirname($this->plugin_slug),
             'version' => $remote_version,
             'author' => 'Inbound Interactive',
             'homepage' => $this->get_github_repo_url(),
             'requires' => '5.0',
-            'tested' => get_bloginfo('version'),
+            'tested' => '6.8.2',
             'downloaded' => 0,
             'last_updated' => date('Y-m-d'),
             'sections' => array(
-                'description' => 'Manage press releases with 500+ URLs using accordion interface and AJAX loading.',
+                'description' => 'Free press releases management with enterprise-grade security, AJAX-loaded URLs, and donation support.',
                 'changelog' => $changelog
             ),
             'download_link' => $this->get_download_url($remote_version)

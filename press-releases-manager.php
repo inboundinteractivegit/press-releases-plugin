@@ -1,9 +1,20 @@
 <?php
 /**
- * Plugin Name: Press Releases Manager
- * Description: Manage press releases with AJAX-loaded URLs in accordion format
- * Version: 1.5.0
+ * Plugin Name: PressStack
+ * Plugin URI: https://github.com/inboundinteractivegit/press-releases-plugin
+ * Description: Free press releases management with AJAX-loaded URLs, advanced security, and beginner-friendly interface. Manage hundreds of press release URLs with SEO optimization and comprehensive protection. Support our development with a donation!
+ * Version: 1.5.1
  * Author: Inbound Interactive
+ * Author URI: https://inboundinteractive.com
+ * Text Domain: pressstack
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Tested up to: 6.8.2
+ * Requires PHP: 7.4
+ * Network: false
+ * License: GPL v2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Donate link: https://github.com/sponsors/inboundinteractivegit
  */
 
 // Prevent direct access
@@ -11,7 +22,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class PressReleasesManager {
+class PressStack {
 
     public function __construct() {
         add_action('init', array($this, 'init'));
@@ -29,6 +40,11 @@ class PressReleasesManager {
             new PressReleasesUpdater(__FILE__, 'inboundinteractivegit', 'press-releases-plugin');
             add_action('admin_notices', array($this, 'show_seo_update_notice'));
             add_action('wp_ajax_dismiss_seo_notice', array($this, 'dismiss_seo_notice'));
+
+            // Donation system
+            add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'add_donation_link'));
+            add_action('admin_notices', array($this, 'show_donation_notice'));
+            add_action('wp_ajax_dismiss_donation_notice', array($this, 'dismiss_donation_notice'));
         }
     }
 
@@ -355,6 +371,78 @@ class PressReleasesManager {
     }
 
     /**
+     * Add donation link to plugin actions
+     */
+    public function add_donation_link($links) {
+        $donation_link = '<a href="https://github.com/sponsors/inboundinteractivegit" target="_blank" style="color: #d63638; font-weight: bold;">❤️ Sponsor</a>';
+        array_unshift($links, $donation_link);
+        return $links;
+    }
+
+    /**
+     * Show contextual donation notice
+     */
+    public function show_donation_notice() {
+        $screen = get_current_screen();
+
+        // Only show on Press Releases pages
+        if (!$screen || strpos($screen->id, 'press_release') === false) {
+            return;
+        }
+
+        // Check if user has been using the plugin (has press releases)
+        $press_release_count = wp_count_posts('press_release');
+        $total_releases = $press_release_count->publish + $press_release_count->draft;
+
+        // Show notice if user has 3+ press releases and hasn't dismissed
+        if ($total_releases >= 3 && !get_option('pressstack_donation_dismissed')) {
+            ?>
+            <div class="notice notice-info is-dismissible" id="pressstack-donation-notice">
+                <p>
+                    <strong>🎉 You're using PressStack actively!</strong>
+                    If you find it helpful, consider supporting our development to keep it free and improving.
+                    <a href="https://github.com/sponsors/inboundinteractivegit" target="_blank" class="button button-primary" style="margin-left: 10px;">❤️ GitHub Sponsor</a>
+                    <a href="https://www.buymeacoffee.com/inboundinteractive" target="_blank" class="button" style="margin-left: 5px;">☕ Buy us a coffee</a>
+                </p>
+            </div>
+            <script>
+            jQuery(document).ready(function($) {
+                $(document).on('click', '#pressstack-donation-notice .notice-dismiss', function() {
+                    $.post(ajaxurl, {
+                        action: 'dismiss_donation_notice',
+                        nonce: '<?php echo wp_create_nonce('dismiss_donation_notice'); ?>'
+                    });
+                });
+            });
+            </script>
+            <?php
+        }
+
+        // Show success message after saving (contextual)
+        if (isset($_GET['message']) && $_GET['message'] == '1' && $screen->base == 'post') {
+            ?>
+            <div class="notice notice-success">
+                <p>
+                    <strong>✅ Press release saved successfully!</strong>
+                    Love PressStack? <a href="https://github.com/sponsors/inboundinteractivegit" target="_blank">Support our development</a> to keep it free! ❤️
+                </p>
+            </div>
+            <?php
+        }
+    }
+
+    /**
+     * Dismiss donation notice via AJAX
+     */
+    public function dismiss_donation_notice() {
+        if (!wp_verify_nonce($_POST['nonce'], 'dismiss_donation_notice')) {
+            wp_die('Security check failed');
+        }
+        update_option('pressstack_donation_dismissed', true);
+        wp_die();
+    }
+
+    /**
      * Enqueue scripts and styles
      */
     public function enqueue_scripts() {
@@ -563,8 +651,8 @@ class PressReleasesManager {
 }
 
 // Initialize the plugin
-global $press_releases_manager;
-$press_releases_manager = new PressReleasesManager();
+global $pressstack;
+$pressstack = new PressStack();
 
 // Admin functions for bulk URL import
 if (is_admin()) {
@@ -908,15 +996,15 @@ if (is_admin()) {
         // Enhanced security checks
         if (!isset($_POST['press_release_urls_nonce']) ||
             !wp_verify_nonce($_POST['press_release_urls_nonce'], 'save_press_release_urls')) {
-            global $press_releases_manager;
-            $press_releases_manager->log_security_event('save_urls_nonce_fail', array('post_id' => $post_id));
+            global $pressstack;
+            $pressstack->log_security_event('save_urls_nonce_fail', array('post_id' => $post_id));
             return;
         }
 
         // Check user permissions with enhanced validation
         if (!current_user_can('edit_post', $post_id) || !current_user_can('edit_posts')) {
-            global $press_releases_manager;
-            $press_releases_manager->log_security_event('save_urls_permission_fail', array('post_id' => $post_id));
+            global $pressstack;
+            $pressstack->log_security_event('save_urls_permission_fail', array('post_id' => $post_id));
             return;
         }
 
@@ -926,9 +1014,9 @@ if (is_admin()) {
         }
 
         // Rate limiting for URL saves
-        global $press_releases_manager;
-        if (!$press_releases_manager->check_rate_limit('save_urls', 5, 60)) {
-            $press_releases_manager->log_security_event('save_urls_rate_limit', array('post_id' => $post_id));
+        global $pressstack;
+        if (!$pressstack->check_rate_limit('save_urls', 5, 60)) {
+            $pressstack->log_security_event('save_urls_rate_limit', array('post_id' => $post_id));
             wp_die('Too many save attempts. Please wait before trying again.');
         }
 
@@ -941,7 +1029,7 @@ if (is_admin()) {
 
             // Validate JSON size (prevent DoS attacks)
             if (strlen($json_data) > 50000) { // 50KB limit
-                $press_releases_manager->log_security_event('json_too_large', array('post_id' => $post_id, 'size' => strlen($json_data)));
+                $pressstack->log_security_event('json_too_large', array('post_id' => $post_id, 'size' => strlen($json_data)));
                 wp_die('Data too large. Please reduce the number of URLs.');
             }
 
@@ -950,7 +1038,7 @@ if (is_admin()) {
             if (is_array($new_urls) && !empty($new_urls)) {
                 // Limit number of URLs to prevent abuse
                 if (count($new_urls) > 100) {
-                    $press_releases_manager->log_security_event('too_many_urls', array('post_id' => $post_id, 'count' => count($new_urls)));
+                    $pressstack->log_security_event('too_many_urls', array('post_id' => $post_id, 'count' => count($new_urls)));
                     wp_die('Too many URLs. Maximum 100 URLs allowed per press release.');
                 }
 
@@ -960,9 +1048,9 @@ if (is_admin()) {
                     }
 
                     // Enhanced URL validation
-                    $clean_url = $press_releases_manager->sanitize_url_input($url_data['url']);
+                    $clean_url = $pressstack->sanitize_url_input($url_data['url']);
                     if (!$clean_url) {
-                        $press_releases_manager->log_security_event('invalid_url_blocked', array(
+                        $pressstack->log_security_event('invalid_url_blocked', array(
                             'post_id' => $post_id,
                             'url' => substr($url_data['url'], 0, 100)
                         ));
@@ -970,7 +1058,7 @@ if (is_admin()) {
                     }
 
                     // Enhanced title sanitization
-                    $clean_title = $press_releases_manager->sanitize_text_input(
+                    $clean_title = $pressstack->sanitize_text_input(
                         isset($url_data['title']) ? $url_data['title'] : '',
                         200
                     );
@@ -994,7 +1082,7 @@ if (is_admin()) {
         if (!empty($bulk_urls_field)) {
             // Validate bulk data size
             if (strlen($bulk_urls_field) > 100000) { // 100KB limit
-                $press_releases_manager->log_security_event('bulk_data_too_large', array('post_id' => $post_id, 'size' => strlen($bulk_urls_field)));
+                $pressstack->log_security_event('bulk_data_too_large', array('post_id' => $post_id, 'size' => strlen($bulk_urls_field)));
                 wp_die('Bulk data too large. Please reduce the number of URLs.');
             }
 
@@ -1004,7 +1092,7 @@ if (is_admin()) {
                 if (current_user_can('delete_posts')) {
                     $wpdb->delete($table_name, array('press_release_id' => $post_id), array('%d'));
                 } else {
-                    $press_releases_manager->log_security_event('replace_urls_permission_fail', array('post_id' => $post_id));
+                    $pressstack->log_security_event('replace_urls_permission_fail', array('post_id' => $post_id));
                     wp_die('Insufficient permissions to replace existing URLs.');
                 }
             }
@@ -1014,7 +1102,7 @@ if (is_admin()) {
 
             // Limit number of lines to prevent abuse
             if (count($urls_lines) > 200) {
-                $press_releases_manager->log_security_event('bulk_too_many_lines', array('post_id' => $post_id, 'lines' => count($urls_lines)));
+                $pressstack->log_security_event('bulk_too_many_lines', array('post_id' => $post_id, 'lines' => count($urls_lines)));
                 wp_die('Too many URLs in bulk import. Maximum 200 URLs allowed.');
             }
 
@@ -1038,9 +1126,9 @@ if (is_admin()) {
                 }
 
                 // Enhanced URL validation
-                $clean_url = $press_releases_manager->sanitize_url_input($url);
+                $clean_url = $pressstack->sanitize_url_input($url);
                 if (!$clean_url) {
-                    $press_releases_manager->log_security_event('bulk_invalid_url', array(
+                    $pressstack->log_security_event('bulk_invalid_url', array(
                         'post_id' => $post_id,
                         'url' => substr($url, 0, 100)
                     ));
@@ -1048,7 +1136,7 @@ if (is_admin()) {
                 }
 
                 // Enhanced title sanitization
-                $clean_title = $press_releases_manager->sanitize_text_input($title, 200);
+                $clean_title = $pressstack->sanitize_text_input($title, 200);
 
                 // Use prepared statement
                 $wpdb->insert(
@@ -1064,7 +1152,7 @@ if (is_admin()) {
                 $processed_count++;
             }
 
-            $press_releases_manager->log_security_event('bulk_urls_processed', array(
+            $pressstack->log_security_event('bulk_urls_processed', array(
                 'post_id' => $post_id,
                 'count' => $processed_count
             ));
@@ -1474,6 +1562,43 @@ if (is_admin()) {
                 <p>For production sites, consider disabling debug mode for better performance.</p>
             </div>
             <?php endif; ?>
+
+            <div style="background: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; border-radius: 8px; margin-top: 30px;">
+                <h3>❤️ Support PressStack Development</h3>
+                <p><strong>PressStack is completely free!</strong> If you find it helpful for managing your press releases, consider supporting our development to keep it free and improving.</p>
+
+                <div style="display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap;">
+                    <a href="https://github.com/sponsors/inboundinteractivegit" target="_blank" class="button button-primary" style="background: #24292f; border-color: #24292f;">
+                        ❤️ GitHub Sponsors (0% fees)
+                    </a>
+                    <a href="https://www.buymeacoffee.com/inboundinteractive" target="_blank" class="button" style="background: #FFDD00; border-color: #FFDD00; color: #000;">
+                        ☕ Buy us a Coffee (5% fees)
+                    </a>
+                    <a href="https://donate.stripe.com/YOUR_STRIPE_LINK" target="_blank" class="button" style="background: #635bff; border-color: #635bff; color: #fff;">
+                        💳 Credit Card (2.9% fees)
+                    </a>
+                    <a href="https://github.com/inboundinteractivegit/press-releases-plugin" target="_blank" class="button">
+                        ⭐ Star on GitHub (Free!)
+                    </a>
+                </div>
+
+                <div style="background: #fff; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                    <h4>💰 How Your Support Helps:</h4>
+                    <ul style="margin: 10px 0;">
+                        <li><strong>🚀 New Features:</strong> Advanced analytics, integrations, export options</li>
+                        <li><strong>🔧 Bug Fixes:</strong> Faster response to issues and compatibility updates</li>
+                        <li><strong>📚 Documentation:</strong> Better guides, tutorials, and support resources</li>
+                        <li><strong>🌟 Free Forever:</strong> Keep PressStack completely free for everyone</li>
+                    </ul>
+                    <p style="margin-top: 10px; font-size: 14px; color: #6c757d;">
+                        <strong>💡 Recommended:</strong> GitHub Sponsors has 0% fees, so 100% goes to development!
+                    </p>
+                </div>
+
+                <p style="margin-top: 15px; font-style: italic; color: #6c757d;">
+                    <strong>Thank you for using PressStack!</strong> Your feedback and support make this plugin better for everyone. ❤️
+                </p>
+            </div>
 
         </div>
         <?php
