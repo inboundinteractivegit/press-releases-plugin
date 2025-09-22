@@ -29,8 +29,10 @@ class PressReleasesUpdater {
         add_filter('plugins_api', array($this, 'plugin_popup'), 10, 3);
         add_filter('upgrader_post_install', array($this, 'after_install'), 10, 3);
 
-        // Add update notice
+        // Add update notice and force check handler
         add_action('admin_notices', array($this, 'update_notice'));
+        add_action('admin_post_force_update_check', array($this, 'force_update_check'));
+        add_action('wp_ajax_force_update_check', array($this, 'ajax_force_update_check'));
     }
 
     /**
@@ -68,14 +70,33 @@ class PressReleasesUpdater {
      * Get latest version from GitHub
      */
     private function get_remote_version() {
-        $request = wp_remote_get($this->get_api_url());
+        // Check for cached version first (but allow force refresh)
+        $cache_key = 'press_releases_remote_version';
+        $force_check = isset($_GET['force-check']) || isset($_POST['force_update_check']);
+
+        if (!$force_check) {
+            $cached_version = get_transient($cache_key);
+            if ($cached_version !== false) {
+                return $cached_version;
+            }
+        }
+
+        $request = wp_remote_get($this->get_api_url(), array(
+            'timeout' => 15,
+            'headers' => array(
+                'User-Agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url')
+            )
+        ));
 
         if (!is_wp_error($request) && wp_remote_retrieve_response_code($request) === 200) {
             $body = wp_remote_retrieve_body($request);
             $data = json_decode($body, true);
 
             if (isset($data['tag_name'])) {
-                return ltrim($data['tag_name'], 'v');
+                $version = ltrim($data['tag_name'], 'v');
+                // Cache for 1 hour instead of 12 hours
+                set_transient($cache_key, $version, HOUR_IN_SECONDS);
+                return $version;
             }
         }
 
@@ -188,6 +209,63 @@ class PressReleasesUpdater {
             echo '<a href="' . admin_url('plugins.php') . '">Update now</a></p>';
             echo '</div>';
         }
+
+        // Add force check button for admins
+        if (current_user_can('manage_options')) {
+            echo '<div class="notice notice-info" style="position: relative;">';
+            echo '<p><strong>Press Releases Manager Auto-Updater:</strong> Current v' . $this->version . ' | ';
+            if ($remote_version) {
+                echo 'Latest v' . $remote_version;
+            } else {
+                echo 'Checking...';
+            }
+            echo '</p>';
+            echo '<form method="post" action="' . admin_url('admin-post.php') . '" style="display: inline;">';
+            echo '<input type="hidden" name="action" value="force_update_check">';
+            wp_nonce_field('force_update_check', 'force_check_nonce');
+            echo '<input type="submit" class="button" value="🔄 Force Check for Updates">';
+            echo '</form>';
+            echo '</div>';
+        }
+    }
+
+    /**
+     * Handle force update check
+     */
+    public function force_update_check() {
+        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['force_check_nonce'], 'force_update_check')) {
+            wp_die('Security check failed');
+        }
+
+        // Clear all plugin update caches
+        delete_site_transient('update_plugins');
+        delete_transient('press_releases_remote_version');
+
+        // Force recheck
+        $remote_version = $this->get_remote_version();
+
+        wp_redirect(admin_url('plugins.php?force-checked=1&remote_version=' . urlencode($remote_version)));
+        exit();
+    }
+
+    /**
+     * AJAX handler for force update check
+     */
+    public function ajax_force_update_check() {
+        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'force_update_check')) {
+            wp_die('Security check failed');
+        }
+
+        delete_site_transient('update_plugins');
+        delete_transient('press_releases_remote_version');
+
+        $remote_version = $this->get_remote_version();
+
+        wp_send_json_success(array(
+            'message' => 'Update check completed',
+            'current_version' => $this->version,
+            'remote_version' => $remote_version
+        ));
     }
 }
 
