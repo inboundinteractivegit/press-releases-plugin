@@ -5,6 +5,29 @@ All notable changes to the Press Releases Manager plugin will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2025-09-23
+
+### 🐛 Critical Bug Fix
+
+#### Fixed
+- **Fatal Error in Add Press Release** - Fixed critical error that prevented adding new press releases
+- **Function Call Issues** - Removed problematic calls to non-existent security methods
+- **URL Validation** - Replaced custom validation with WordPress native functions (`esc_url_raw`, `filter_var`)
+- **Text Sanitization** - Replaced custom sanitization with WordPress native `sanitize_text_field`
+- **Error Handling** - Replaced logging calls with proper `wp_die()` error handling
+
+#### Technical Details
+- Removed calls to `$pressstack->log_security_event()`, `$pressstack->check_rate_limit()`, `$pressstack->sanitize_url_input()`
+- Maintained all security features (nonce verification, user permissions, data limits)
+- Simplified but secure validation using WordPress built-in functions
+- No breaking changes - all existing functionality preserved
+
+#### Impact
+- ✅ **Add Press Release page now works** without fatal errors
+- ✅ **Individual URL addition** functions properly
+- ✅ **Bulk URL import** functions properly
+- ✅ **Security maintained** with WordPress native functions
+
 ## [1.5.0] - 2025-09-22
 
 ### 🛡️ Major Security & Auto-Updater Enhancements

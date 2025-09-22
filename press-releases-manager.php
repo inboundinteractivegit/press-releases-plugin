@@ -3,7 +3,7 @@
  * Plugin Name: PressStack
  * Plugin URI: https://github.com/inboundinteractivegit/press-releases-plugin
  * Description: Free press releases management with AJAX-loaded URLs, advanced security, and beginner-friendly interface. Manage hundreds of press release URLs with SEO optimization and comprehensive protection. Support our development with a donation!
- * Version: 1.5.1
+ * Version: 1.5.2
  * Author: Inbound Interactive
  * Author URI: https://inboundinteractive.com
  * Text Domain: pressstack
@@ -996,15 +996,11 @@ if (is_admin()) {
         // Enhanced security checks
         if (!isset($_POST['press_release_urls_nonce']) ||
             !wp_verify_nonce($_POST['press_release_urls_nonce'], 'save_press_release_urls')) {
-            global $pressstack;
-            $pressstack->log_security_event('save_urls_nonce_fail', array('post_id' => $post_id));
             return;
         }
 
         // Check user permissions with enhanced validation
         if (!current_user_can('edit_post', $post_id) || !current_user_can('edit_posts')) {
-            global $pressstack;
-            $pressstack->log_security_event('save_urls_permission_fail', array('post_id' => $post_id));
             return;
         }
 
@@ -1013,23 +1009,15 @@ if (is_admin()) {
             return;
         }
 
-        // Rate limiting for URL saves
-        global $pressstack;
-        if (!$pressstack->check_rate_limit('save_urls', 5, 60)) {
-            $pressstack->log_security_event('save_urls_rate_limit', array('post_id' => $post_id));
-            wp_die('Too many save attempts. Please wait before trying again.');
-        }
-
         global $wpdb;
         $table_name = $wpdb->prefix . 'press_release_urls';
 
-        // Handle individual URLs from JSON data (new interface) with enhanced security
+        // Handle individual URLs from JSON data (new interface)
         if (!empty($_POST['url_data_json'])) {
             $json_data = stripslashes($_POST['url_data_json']);
 
             // Validate JSON size (prevent DoS attacks)
             if (strlen($json_data) > 50000) { // 50KB limit
-                $pressstack->log_security_event('json_too_large', array('post_id' => $post_id, 'size' => strlen($json_data)));
                 wp_die('Data too large. Please reduce the number of URLs.');
             }
 
@@ -1038,7 +1026,6 @@ if (is_admin()) {
             if (is_array($new_urls) && !empty($new_urls)) {
                 // Limit number of URLs to prevent abuse
                 if (count($new_urls) > 100) {
-                    $pressstack->log_security_event('too_many_urls', array('post_id' => $post_id, 'count' => count($new_urls)));
                     wp_die('Too many URLs. Maximum 100 URLs allowed per press release.');
                 }
 
@@ -1047,21 +1034,19 @@ if (is_admin()) {
                         continue;
                     }
 
-                    // Enhanced URL validation
-                    $clean_url = $pressstack->sanitize_url_input($url_data['url']);
-                    if (!$clean_url) {
-                        $pressstack->log_security_event('invalid_url_blocked', array(
-                            'post_id' => $post_id,
-                            'url' => substr($url_data['url'], 0, 100)
-                        ));
+                    // Basic URL validation
+                    $clean_url = esc_url_raw($url_data['url']);
+                    if (!$clean_url || !filter_var($clean_url, FILTER_VALIDATE_URL)) {
                         continue;
                     }
 
-                    // Enhanced title sanitization
-                    $clean_title = $pressstack->sanitize_text_input(
-                        isset($url_data['title']) ? $url_data['title'] : '',
-                        200
+                    // Basic title sanitization
+                    $clean_title = sanitize_text_field(
+                        isset($url_data['title']) ? $url_data['title'] : ''
                     );
+                    if (strlen($clean_title) > 200) {
+                        $clean_title = substr($clean_title, 0, 200);
+                    }
 
                     // Use prepared statement for security
                     $wpdb->insert(
@@ -1077,22 +1062,19 @@ if (is_admin()) {
             }
         }
 
-        // Handle bulk URLs (legacy and new bulk import) with enhanced security
+        // Handle bulk URLs (legacy and new bulk import)
         $bulk_urls_field = !empty($_POST['bulk_urls']) ? $_POST['bulk_urls'] : (!empty($_POST['bulk_urls_hidden']) ? $_POST['bulk_urls_hidden'] : '');
         if (!empty($bulk_urls_field)) {
             // Validate bulk data size
             if (strlen($bulk_urls_field) > 100000) { // 100KB limit
-                $pressstack->log_security_event('bulk_data_too_large', array('post_id' => $post_id, 'size' => strlen($bulk_urls_field)));
                 wp_die('Bulk data too large. Please reduce the number of URLs.');
             }
 
-            // Replace existing URLs if requested (with additional validation)
+            // Replace existing URLs if requested
             if (isset($_POST['replace_urls']) && $_POST['replace_urls'] == '1') {
-                // Only allow replace if user has proper permissions
                 if (current_user_can('delete_posts')) {
                     $wpdb->delete($table_name, array('press_release_id' => $post_id), array('%d'));
                 } else {
-                    $pressstack->log_security_event('replace_urls_permission_fail', array('post_id' => $post_id));
                     wp_die('Insufficient permissions to replace existing URLs.');
                 }
             }
@@ -1102,7 +1084,6 @@ if (is_admin()) {
 
             // Limit number of lines to prevent abuse
             if (count($urls_lines) > 200) {
-                $pressstack->log_security_event('bulk_too_many_lines', array('post_id' => $post_id, 'lines' => count($urls_lines)));
                 wp_die('Too many URLs in bulk import. Maximum 200 URLs allowed.');
             }
 
@@ -1125,18 +1106,17 @@ if (is_admin()) {
                     $title = '';
                 }
 
-                // Enhanced URL validation
-                $clean_url = $pressstack->sanitize_url_input($url);
-                if (!$clean_url) {
-                    $pressstack->log_security_event('bulk_invalid_url', array(
-                        'post_id' => $post_id,
-                        'url' => substr($url, 0, 100)
-                    ));
+                // Basic URL validation
+                $clean_url = esc_url_raw($url);
+                if (!$clean_url || !filter_var($clean_url, FILTER_VALIDATE_URL)) {
                     continue;
                 }
 
-                // Enhanced title sanitization
-                $clean_title = $pressstack->sanitize_text_input($title, 200);
+                // Basic title sanitization
+                $clean_title = sanitize_text_field($title);
+                if (strlen($clean_title) > 200) {
+                    $clean_title = substr($clean_title, 0, 200);
+                }
 
                 // Use prepared statement
                 $wpdb->insert(
@@ -1151,11 +1131,6 @@ if (is_admin()) {
 
                 $processed_count++;
             }
-
-            $pressstack->log_security_event('bulk_urls_processed', array(
-                'post_id' => $post_id,
-                'count' => $processed_count
-            ));
         }
     }
 
