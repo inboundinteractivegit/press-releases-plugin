@@ -5,6 +5,64 @@ All notable changes to the Press Releases Manager plugin will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.4] - 2025-09-24
+
+### 🚀 Enhanced URL Capacity & Bug Fixes
+
+#### Changed
+- **Increased URL limits significantly** - Maximum URLs per press release increased from 100 to 1000
+- **Enhanced bulk import capacity** - Maximum bulk import lines increased from 200 to 1000
+- **Improved scalability** - Plugin now supports enterprise-level press release management with thousands of URLs
+
+#### Fixed
+- **Press release creation issues** - Resolved problems with adding new press releases
+- **Multiple URL handling** - Fixed issues when adding multiple URLs to press releases
+- **Bulk import functionality** - Improved reliability of bulk URL import feature
+
+#### Technical Details
+- Updated validation limits in `save_press_release_urls()` function
+- Increased processing capacity for both individual and bulk URL operations
+- Maintained all existing security features while supporting higher volume usage
+
+## [1.5.3] - 2025-09-23
+
+### 🚀 Pro Upgrade Integration & User Experience Enhancement
+
+#### Added
+- **⭐ Pro Upgrade Integration** - Seamless upgrade path to PressStack Pro
+- **📈 Smart Upgrade Prompts** - Context-aware notices for active users (5+ press releases)
+- **🎯 Feature Teasers** - Analytics preview on settings page
+- **📋 Comprehensive Upgrade Page** - Detailed Pro features, pricing, and benefits
+- **🔗 Plugin Action Links** - Direct upgrade link in plugins list
+- **🎨 Professional Upgrade UI** - Modern, conversion-optimized design
+
+#### Enhanced User Experience
+- **Non-intrusive Prompts** - Only show upgrade options to active users
+- **Dismissible Notices** - Users can dismiss upgrade prompts
+- **Feature Comparison** - Clear before/after feature explanations
+- **Transparent Pricing** - Simple pricing tiers with feature breakdown
+- **Call-to-Action Optimization** - Strategic placement of upgrade buttons
+
+#### Pro Integration Features
+- **Dependency Detection** - Automatically detects if Pro is installed
+- **Menu Integration** - Pro upgrade menu in Press Releases section
+- **Context-Aware Display** - Show relevant features based on current page
+- **License Integration Ready** - Foundation for Pro license management
+
+#### Technical Implementation
+- Added `show_pro_upgrade_notices()` method with usage-based triggers
+- Added `add_pro_upgrade_link()` for plugin action links
+- Added `add_pro_upgrade_menu()` for admin menu integration
+- Added `display_upgrade_page()` with comprehensive Pro information
+- Added `dismiss_pro_notice()` AJAX handler for notice management
+- Added `show_analytics_teaser()` for feature-specific prompts
+
+#### Conversion Optimization
+- **Progressive Disclosure** - Show upgrade options as users become more engaged
+- **Value Proposition** - Clear ROI and benefit explanations
+- **Social Proof Ready** - Framework for testimonials and case studies
+- **A/B Testing Ready** - Modular design for testing different approaches
+
 ## [1.5.2] - 2025-09-23
 
 ### 🐛 Critical Bug Fix
@@ -62,8 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **📝 Conditional Logging** - Only active when WP_DEBUG enabled
 
 #### Security Limits
-- **Maximum URLs per press release:** 100
-- **Maximum bulk import lines:** 200
+- **Maximum URLs per press release:** 1000
+- **Maximum bulk import lines:** 1000
 - **JSON data size limit:** 50KB
 - **Bulk data size limit:** 100KB
 - **URL title max length:** 200 characters

@@ -3,7 +3,7 @@
  * Plugin Name: PressStack
  * Plugin URI: https://github.com/inboundinteractivegit/press-releases-plugin
  * Description: Free press releases management with AJAX-loaded URLs, advanced security, and beginner-friendly interface. Manage hundreds of press release URLs with SEO optimization and comprehensive protection. Support our development with a donation!
- * Version: 1.5.2
+ * Version: 1.5.4
  * Author: Inbound Interactive
  * Author URI: https://inboundinteractive.com
  * Text Domain: pressstack
@@ -45,6 +45,12 @@ class PressStack {
             add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'add_donation_link'));
             add_action('admin_notices', array($this, 'show_donation_notice'));
             add_action('wp_ajax_dismiss_donation_notice', array($this, 'dismiss_donation_notice'));
+
+            // Pro upgrade integration
+            add_action('admin_notices', array($this, 'show_pro_upgrade_notices'));
+            add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'add_pro_upgrade_link'));
+            add_action('admin_menu', array($this, 'add_pro_upgrade_menu'));
+            add_action('wp_ajax_dismiss_pro_notice', array($this, 'dismiss_pro_notice'));
         }
     }
 
@@ -439,6 +445,274 @@ class PressStack {
             wp_die('Security check failed');
         }
         update_option('pressstack_donation_dismissed', true);
+        wp_die();
+    }
+
+    /**
+     * Show Pro upgrade notices
+     */
+    public function show_pro_upgrade_notices() {
+        // Don't show if Pro is already active
+        if (class_exists('PressStackPro')) {
+            return;
+        }
+
+        $screen = get_current_screen();
+        if (!$screen || strpos($screen->id, 'press_release') === false) {
+            return;
+        }
+
+        // Check if user has been using the plugin actively
+        $press_release_count = wp_count_posts('press_release');
+        $total_releases = $press_release_count->publish + $press_release_count->draft;
+
+        // Show upgrade notice for active users (5+ press releases)
+        if ($total_releases >= 5 && !get_option('pressstack_pro_notice_dismissed')) {
+            ?>
+            <div class="notice notice-info is-dismissible" id="pressstack-pro-notice">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="font-size: 48px;">🚀</div>
+                    <div>
+                        <h3 style="margin: 0 0 10px;">Ready for PressStack Pro?</h3>
+                        <p style="margin: 0 0 15px;">
+                            <strong>You're managing <?php echo $total_releases; ?> press releases!</strong>
+                            Unlock advanced features to supercharge your press release management.
+                        </p>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <a href="https://pressstack.pro" target="_blank" class="button button-primary">
+                                ⭐ View Pro Features
+                            </a>
+                            <a href="#" class="button" onclick="dismissProNotice()">Maybe Later</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+            function dismissProNotice() {
+                jQuery.post(ajaxurl, {
+                    action: 'dismiss_pro_notice',
+                    nonce: '<?php echo wp_create_nonce('dismiss_pro_notice'); ?>'
+                });
+                jQuery('#pressstack-pro-notice').fadeOut();
+            }
+            jQuery(document).ready(function($) {
+                $(document).on('click', '#pressstack-pro-notice .notice-dismiss', function() {
+                    dismissProNotice();
+                });
+            });
+            </script>
+            <?php
+        }
+
+        // Show feature-specific teasers on relevant pages
+        if ($screen->id === 'press_release_page_press-releases-settings') {
+            $this->show_analytics_teaser();
+        }
+    }
+
+    /**
+     * Add Pro upgrade link to plugin actions
+     */
+    public function add_pro_upgrade_link($links) {
+        // Don't show if Pro is already active
+        if (class_exists('PressStackPro')) {
+            return $links;
+        }
+
+        $pro_link = '<a href="https://pressstack.pro" target="_blank" style="color: #d63384; font-weight: bold;">⭐ Upgrade to Pro</a>';
+        array_unshift($links, $pro_link);
+        return $links;
+    }
+
+    /**
+     * Add Pro upgrade menu
+     */
+    public function add_pro_upgrade_menu() {
+        // Don't show if Pro is already active
+        if (class_exists('PressStackPro')) {
+            return;
+        }
+
+        add_submenu_page(
+            'edit.php?post_type=press_release',
+            'Upgrade to Pro',
+            '⭐ Upgrade to Pro',
+            'manage_options',
+            'pressstack-upgrade',
+            array($this, 'display_upgrade_page')
+        );
+    }
+
+    /**
+     * Display upgrade page
+     */
+    public function display_upgrade_page() {
+        ?>
+        <div class="wrap">
+            <h1>🚀 Upgrade to PressStack Pro</h1>
+
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 12px; margin: 20px 0; text-align: center;">
+                <h2 style="color: white; margin: 0 0 20px;">Transform Your Press Release Management</h2>
+                <p style="font-size: 18px; margin: 0 0 30px; opacity: 0.9;">Get advanced analytics, custom templates, email distribution, and more!</p>
+                <a href="https://pressstack.pro" target="_blank" class="button button-hero" style="background: #fff; color: #667eea; border: none; padding: 15px 30px; font-size: 16px; font-weight: bold;">
+                    🛒 Get PressStack Pro
+                </a>
+            </div>
+
+            <div class="pro-features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin: 30px 0;">
+
+                <div class="feature-card" style="background: white; padding: 25px; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h3>📊 Advanced Analytics</h3>
+                    <ul style="color: #666; line-height: 1.8;">
+                        <li>✅ Real-time tracking and reporting</li>
+                        <li>✅ Geographic analytics by country/city</li>
+                        <li>✅ Click tracking for all URLs</li>
+                        <li>✅ Performance metrics dashboard</li>
+                        <li>✅ Export reports to CSV/PDF</li>
+                    </ul>
+                    <div class="feature-demo" style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                        <small><strong>Current:</strong> Basic URL display</small><br>
+                        <small><strong>Pro:</strong> Track every click, view, and engagement</small>
+                    </div>
+                </div>
+
+                <div class="feature-card" style="background: white; padding: 25px; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h3>🎨 Custom Templates</h3>
+                    <ul style="color: #666; line-height: 1.8;">
+                        <li>✅ Visual template builder</li>
+                        <li>✅ Professional pre-made designs</li>
+                        <li>✅ Mobile-responsive layouts</li>
+                        <li>✅ Import/export templates</li>
+                        <li>✅ Brand customization options</li>
+                    </ul>
+                    <div class="feature-demo" style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                        <small><strong>Current:</strong> Default accordion layout</small><br>
+                        <small><strong>Pro:</strong> Unlimited custom designs</small>
+                    </div>
+                </div>
+
+                <div class="feature-card" style="background: white; padding: 25px; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h3>📧 Email Distribution</h3>
+                    <ul style="color: #666; line-height: 1.8;">
+                        <li>✅ Send to media contacts directly</li>
+                        <li>✅ Professional email templates</li>
+                        <li>✅ Contact database management</li>
+                        <li>✅ Campaign tracking & analytics</li>
+                        <li>✅ Bulk email sending</li>
+                    </ul>
+                    <div class="feature-demo" style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                        <small><strong>Current:</strong> Manual URL sharing</small><br>
+                        <small><strong>Pro:</strong> Automated media outreach</small>
+                    </div>
+                </div>
+
+                <div class="feature-card" style="background: white; padding: 25px; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h3>🔐 Enterprise Features</h3>
+                    <ul style="color: #666; line-height: 1.8;">
+                        <li>✅ Priority support & updates</li>
+                        <li>✅ Multi-site licensing</li>
+                        <li>✅ White-label options</li>
+                        <li>✅ API access for integrations</li>
+                        <li>✅ Advanced user permissions</li>
+                    </ul>
+                    <div class="feature-demo" style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                        <small><strong>Current:</strong> Basic functionality</small><br>
+                        <small><strong>Pro:</strong> Enterprise-grade features</small>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="pricing-section" style="background: #f8f9fa; padding: 30px; border-radius: 10px; margin: 30px 0;">
+                <h2 style="text-align: center; margin-bottom: 30px;">💰 Simple, Transparent Pricing</h2>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+
+                    <div class="pricing-card" style="background: white; padding: 25px; border-radius: 10px; border: 2px solid #e5e7eb; text-align: center;">
+                        <h3>Single Site</h3>
+                        <div style="font-size: 32px; font-weight: bold; color: #2271b1; margin: 15px 0;">$29<span style="font-size: 16px; color: #666;">/mo</span></div>
+                        <ul style="text-align: left; color: #666; line-height: 1.8; padding-left: 20px;">
+                            <li>1 WordPress site</li>
+                            <li>All Pro features</li>
+                            <li>Email support</li>
+                            <li>Updates included</li>
+                        </ul>
+                        <a href="https://pressstack.pro/single" target="_blank" class="button button-primary" style="margin-top: 15px;">Get Started</a>
+                    </div>
+
+                    <div class="pricing-card" style="background: white; padding: 25px; border-radius: 10px; border: 2px solid #2271b1; text-align: center; position: relative;">
+                        <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #2271b1; color: white; padding: 5px 15px; border-radius: 15px; font-size: 12px; font-weight: bold;">POPULAR</div>
+                        <h3>Multi-Site</h3>
+                        <div style="font-size: 32px; font-weight: bold; color: #2271b1; margin: 15px 0;">$79<span style="font-size: 16px; color: #666;">/mo</span></div>
+                        <ul style="text-align: left; color: #666; line-height: 1.8; padding-left: 20px;">
+                            <li>Up to 5 WordPress sites</li>
+                            <li>All Pro features</li>
+                            <li>Priority support</li>
+                            <li>CRM integrations</li>
+                        </ul>
+                        <a href="https://pressstack.pro/multi" target="_blank" class="button button-primary" style="margin-top: 15px;">Get Started</a>
+                    </div>
+
+                    <div class="pricing-card" style="background: white; padding: 25px; border-radius: 10px; border: 2px solid #e5e7eb; text-align: center;">
+                        <h3>Agency</h3>
+                        <div style="font-size: 32px; font-weight: bold; color: #2271b1; margin: 15px 0;">$199<span style="font-size: 16px; color: #666;">/mo</span></div>
+                        <ul style="text-align: left; color: #666; line-height: 1.8; padding-left: 20px;">
+                            <li>Unlimited sites</li>
+                            <li>White-label options</li>
+                            <li>API access</li>
+                            <li>Phone support</li>
+                        </ul>
+                        <a href="https://pressstack.pro/agency" target="_blank" class="button button-primary" style="margin-top: 15px;">Get Started</a>
+                    </div>
+
+                </div>
+            </div>
+
+            <div style="background: #e7f3ff; padding: 20px; border-left: 4px solid #2271b1; margin: 30px 0;">
+                <h3>🎁 Special Launch Offer</h3>
+                <p><strong>Save 30% on your first 3 months!</strong> Use code <code>PRESSSTACK30</code> at checkout.</p>
+                <p>✅ 14-day free trial • ✅ Cancel anytime • ✅ 30-day money-back guarantee</p>
+            </div>
+
+            <div style="text-align: center; margin: 40px 0;">
+                <a href="https://pressstack.pro" target="_blank" class="button button-hero button-primary" style="padding: 15px 40px; font-size: 18px;">
+                    🚀 Start Your Free Trial
+                </a>
+                <p style="margin-top: 15px; color: #666;">
+                    Questions? <a href="mailto:support@pressstack.pro">Contact our team</a>
+                </p>
+            </div>
+
+        </div>
+        <?php
+    }
+
+    /**
+     * Show analytics teaser on settings page
+     */
+    private function show_analytics_teaser() {
+        if (class_exists('PressStackPro')) {
+            return;
+        }
+        ?>
+        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 10px; margin: 20px 0;">
+            <h3 style="color: white; margin: 0 0 15px;">📊 Want Analytics for Your Press Releases?</h3>
+            <p style="margin: 0 0 15px; opacity: 0.9;">Track clicks, views, geographic data, and performance metrics with PressStack Pro!</p>
+            <a href="https://pressstack.pro" target="_blank" class="button" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white;">
+                View Analytics Features
+            </a>
+        </div>
+        <?php
+    }
+
+    /**
+     * Dismiss Pro upgrade notice via AJAX
+     */
+    public function dismiss_pro_notice() {
+        if (!wp_verify_nonce($_POST['nonce'], 'dismiss_pro_notice')) {
+            wp_die('Security check failed');
+        }
+        update_option('pressstack_pro_notice_dismissed', true);
         wp_die();
     }
 
@@ -1025,8 +1299,8 @@ if (is_admin()) {
 
             if (is_array($new_urls) && !empty($new_urls)) {
                 // Limit number of URLs to prevent abuse
-                if (count($new_urls) > 100) {
-                    wp_die('Too many URLs. Maximum 100 URLs allowed per press release.');
+                if (count($new_urls) > 1000) {
+                    wp_die('Too many URLs. Maximum 1000 URLs allowed per press release.');
                 }
 
                 foreach ($new_urls as $url_data) {
@@ -1083,8 +1357,8 @@ if (is_admin()) {
             $urls_lines = explode("\n", $urls_text);
 
             // Limit number of lines to prevent abuse
-            if (count($urls_lines) > 200) {
-                wp_die('Too many URLs in bulk import. Maximum 200 URLs allowed.');
+            if (count($urls_lines) > 1000) {
+                wp_die('Too many URLs in bulk import. Maximum 1000 URLs allowed.');
             }
 
             $processed_count = 0;
@@ -1093,7 +1367,7 @@ if (is_admin()) {
                 if (empty($line)) continue;
 
                 // Prevent processing too many URLs
-                if ($processed_count >= 100) {
+                if ($processed_count >= 1000) {
                     break;
                 }
 
@@ -1509,8 +1783,8 @@ if (is_admin()) {
             <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin-top: 20px;">
                 <h3>🔍 Security Limits</h3>
                 <ul>
-                    <li><strong>Maximum URLs per press release:</strong> 100</li>
-                    <li><strong>Maximum bulk import lines:</strong> 200</li>
+                    <li><strong>Maximum URLs per press release:</strong> 1000</li>
+                    <li><strong>Maximum bulk import lines:</strong> 1000</li>
                     <li><strong>JSON data size limit:</strong> 50KB</li>
                     <li><strong>Bulk data size limit:</strong> 100KB</li>
                     <li><strong>URL title max length:</strong> 200 characters</li>
