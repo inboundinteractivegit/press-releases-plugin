@@ -30,6 +30,7 @@ class PressStack {
         add_filter('wp_sitemaps_post_types', array($this, 'exclude_from_sitemap'));
         add_filter('wpseo_sitemap_exclude_post_type', array($this, 'exclude_from_yoast_sitemap'), 10, 2);
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+        add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
         add_action('wp_ajax_load_press_release_urls', array($this, 'ajax_load_urls'));
         add_action('wp_ajax_nopriv_load_press_release_urls', array($this, 'ajax_load_urls'));
         add_shortcode('press_releases', array($this, 'shortcode_display'));
@@ -56,7 +57,7 @@ class PressStack {
 
     public function init() {
         $this->create_press_release_post_type();
-        $this->create_database_table();
+        // Database table creation moved to activation hook
     }
 
     /**
@@ -79,7 +80,49 @@ class PressStack {
     }
 
     /**
-     * Create database table for URLs
+     * Plugin activation hook
+     */
+    public function activate_plugin() {
+        // Create database table on activation only
+        $this->create_database_table();
+
+        // Create press release post type for rewrite rules
+        $this->create_press_release_post_type();
+
+        // Flush rewrite rules to ensure pretty permalinks work
+        flush_rewrite_rules();
+
+        // Set plugin version
+        update_option('pressstack_version', '1.5.5');
+        update_option('pressstack_activation_time', current_time('mysql'));
+    }
+
+    /**
+     * Plugin deactivation hook
+     */
+    public function deactivate_plugin() {
+        // Flush rewrite rules to clean up
+        flush_rewrite_rules();
+
+        // Clean up transients (but keep data for reactivation)
+        $this->cleanup_transients();
+    }
+
+    /**
+     * Clean up transients and cache
+     */
+    private function cleanup_transients() {
+        // Clean up rate limiting transients
+        global $wpdb;
+        $wpdb->query(
+            "DELETE FROM {$wpdb->options}
+             WHERE option_name LIKE '_transient_rate_limit_%'
+             OR option_name LIKE '_transient_timeout_rate_limit_%'"
+        );
+    }
+
+    /**
+     * Create database table for URLs (only on activation)
      */
     public function create_database_table() {
         global $wpdb;
@@ -717,14 +760,59 @@ class PressStack {
     }
 
     /**
-     * Enqueue scripts and styles
+     * Enqueue scripts and styles (only when needed)
      */
     public function enqueue_scripts() {
+        // Only enqueue on pages that have the shortcode or are press release pages
+        global $post;
+
+        $should_enqueue = false;
+
+        // Check if current page/post has the shortcode
+        if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'press_releases')) {
+            $should_enqueue = true;
+        }
+
+        // Check if it's a press release post type page
+        if (is_singular('press_release') || is_post_type_archive('press_release')) {
+            $should_enqueue = true;
+        }
+
+        // Check if it's the admin and we're on press release pages
+        if (is_admin() && isset($_GET['post_type']) && $_GET['post_type'] === 'press_release') {
+            $should_enqueue = true;
+        }
+
+        if (!$should_enqueue) {
+            return;
+        }
+
         wp_enqueue_script('jquery');
-        wp_enqueue_script('press-releases-js', plugin_dir_url(__FILE__) . 'press-releases.js', array('jquery'), '1.0', true);
-        wp_enqueue_style('press-releases-css', plugin_dir_url(__FILE__) . 'press-releases.css', array(), '1.0');
+        wp_enqueue_script('press-releases-js', plugin_dir_url(__FILE__) . 'press-releases.js', array('jquery'), '1.5.5', true);
+        wp_enqueue_style('press-releases-css', plugin_dir_url(__FILE__) . 'press-releases.css', array(), '1.5.5');
 
         wp_localize_script('press-releases-js', 'press_releases_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('press_releases_nonce')
+        ));
+    }
+
+    /**
+     * Enqueue admin scripts and styles
+     */
+    public function admin_enqueue_scripts($hook) {
+        global $post_type;
+
+        // Only load on press release admin pages
+        if ($post_type !== 'press_release' && strpos($hook, 'press_release') === false) {
+            return;
+        }
+
+        wp_enqueue_script('jquery');
+        wp_enqueue_script('press-releases-admin-js', plugin_dir_url(__FILE__) . 'press-releases.js', array('jquery'), '1.5.5', true);
+        wp_enqueue_style('press-releases-admin-css', plugin_dir_url(__FILE__) . 'press-releases.css', array(), '1.5.5');
+
+        wp_localize_script('press-releases-admin-js', 'press_releases_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('press_releases_nonce')
         ));
@@ -927,6 +1015,10 @@ class PressStack {
 // Initialize the plugin
 global $pressstack;
 $pressstack = new PressStack();
+
+// Activation/Deactivation Hooks
+register_activation_hook(__FILE__, array($pressstack, 'activate_plugin'));
+register_deactivation_hook(__FILE__, array($pressstack, 'deactivate_plugin'));
 
 // Admin functions for bulk URL import
 if (is_admin()) {

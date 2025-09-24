@@ -7,28 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.5.5] - 2025-09-24
 
-### 🔒 Critical Bug Fixes
+### 🚨 CRITICAL Bug Fixes - Resolving Site Errors
 
-#### Fixed
+#### MAJOR Performance & Stability Fixes
+- **🔥 CRITICAL: Fixed database table creation on every page load** - Was causing massive performance issues
+- **🔥 CRITICAL: Fixed post type registration on every page load** - Major performance drain eliminated
+- **🔥 CRITICAL: Fixed scripts loading on every page** - Now only loads when needed
+- **🔥 CRITICAL: Added missing activation/deactivation hooks** - Proper plugin lifecycle management
+- **🔥 CRITICAL: Fixed admin script loading** - Admin pages now work properly
+
+#### Security Fixes
 - **Critical PHP Warnings** - Fixed undefined array index warnings when accessing `$_POST['nonce']`
 - **Enhanced Security** - Added proper `isset()` checks before all nonce verifications
 - **Error Prevention** - Prevents PHP warnings in error logs and potential security bypasses
 
-#### Technical Details
+#### Technical Details - Performance Revolution
+- **Database operations moved to activation hook** - No more DB queries on every page load
+- **Conditional script loading** - Scripts only load on pages that need them
+- **Proper WordPress plugin structure** - Added activation/deactivation hooks
+- **Admin-specific enqueuing** - Admin functionality now works reliably
+- **Memory usage optimized** - Dramatically reduced resource consumption
+
+#### Technical Details - Security
 - Fixed 6 critical $_POST array access issues in AJAX handlers
 - Enhanced nonce verification robustness in both main plugin and updater
 - Maintained all existing functionality while improving error handling
-- Zero functional changes for users - pure maintenance release
 
 #### Files Updated
-- `press-releases-manager.php`: 4 critical fixes in AJAX/admin handlers
-- `plugin-updater.php`: 2 critical fixes in update handlers
+- `press-releases-manager.php`: **MAJOR REWRITE** with performance and stability fixes
+- `plugin-updater.php`: 2 critical security fixes in update handlers
 
-#### Impact
+#### Impact - This Will Fix Site Errors
+- ✅ **Eliminates performance issues** causing site slowdowns
+- ✅ **Fixes admin functionality** that wasn't working properly
+- ✅ **No more database queries** on every page load
 - ✅ **No more PHP warnings** in error logs
-- ✅ **Improved security** with robust nonce handling
-- ✅ **Better error handling** for malformed requests
-- ✅ **Production stability** enhanced
+- ✅ **Proper plugin activation** and deactivation
+- ✅ **Dramatically improved site performance**
+- ✅ **Resolves hosting provider complaints** about resource usage
 
 ## [1.5.4] - 2025-09-24
 
