@@ -5,6 +5,31 @@ All notable changes to the Press Releases Manager plugin will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.5] - 2025-09-24
+
+### 🔒 Critical Bug Fixes
+
+#### Fixed
+- **Critical PHP Warnings** - Fixed undefined array index warnings when accessing `$_POST['nonce']`
+- **Enhanced Security** - Added proper `isset()` checks before all nonce verifications
+- **Error Prevention** - Prevents PHP warnings in error logs and potential security bypasses
+
+#### Technical Details
+- Fixed 6 critical $_POST array access issues in AJAX handlers
+- Enhanced nonce verification robustness in both main plugin and updater
+- Maintained all existing functionality while improving error handling
+- Zero functional changes for users - pure maintenance release
+
+#### Files Updated
+- `press-releases-manager.php`: 4 critical fixes in AJAX/admin handlers
+- `plugin-updater.php`: 2 critical fixes in update handlers
+
+#### Impact
+- ✅ **No more PHP warnings** in error logs
+- ✅ **Improved security** with robust nonce handling
+- ✅ **Better error handling** for malformed requests
+- ✅ **Production stability** enhanced
+
 ## [1.5.4] - 2025-09-24
 
 ### 🚀 Enhanced URL Capacity & Bug Fixes
