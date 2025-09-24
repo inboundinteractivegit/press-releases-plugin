@@ -1121,7 +1121,8 @@ if (is_admin()) {
 $pressstack = new PressStack();
 
 // Set up activation and deactivation hooks
-register_activation_hook(__FILE__, array($pressstack, 'activate_plugin'));
-register_deactivation_hook(__FILE__, array($pressstack, 'deactivate_plugin'));
+// Temporarily disabled for debugging
+// register_activation_hook(__FILE__, array($pressstack, 'activate_plugin'));
+// register_deactivation_hook(__FILE__, array($pressstack, 'deactivate_plugin'));
 
 ?>
