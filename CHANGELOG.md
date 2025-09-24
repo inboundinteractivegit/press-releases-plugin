@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.5.6] - 2025-09-24
 
-### 🔧 Auto-Updater Fixes
+### 🔧 Auto-Updater Fixes & Clean User Experience
 
 #### Fixed
 - **Auto-update detection improved** - Reduced cache time from 1 hour to 15 minutes for faster update detection
@@ -16,18 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Debug logging added** - Better troubleshooting for update detection issues
 - **Force check functionality enhanced** - More reliable manual update checking
 
+#### Changed
+- **Pro upgrade features disabled** - Removed promotional notices and upgrade links until Pro version is ready
+- **Cleaner user interface** - No premature marketing of unavailable features
+- **Pro integration preserved** - Backend code ready for when Pro version launches
+
 #### Technical Details
 - Reduced update check cache from 1 hour to 15 minutes
 - Added validation for empty version strings
 - Enhanced version format cleaning with regex
 - Added debug logging when WP_DEBUG is enabled
 - Improved error handling for GitHub API failures
+- Commented out Pro upgrade hooks (easily re-enabled when needed)
 
 #### Impact
 - ✅ **Faster update detection** - Users will see new versions within 15 minutes
 - ✅ **More reliable auto-updates** - Eliminates need for constant force checking
 - ✅ **Better debugging** - Easier to troubleshoot update issues
-- ✅ **Improved user experience** - Smoother update process
+- ✅ **Clean user experience** - No confusing upgrade prompts for unavailable features
+- ✅ **Future-ready** - Pro integration code ready when needed
 
 ## [1.5.5] - 2025-09-24
 

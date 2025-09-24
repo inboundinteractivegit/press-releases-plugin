@@ -47,11 +47,13 @@ class PressStack {
             add_action('admin_notices', array($this, 'show_donation_notice'));
             add_action('wp_ajax_dismiss_donation_notice', array($this, 'dismiss_donation_notice'));
 
-            // Pro upgrade integration
-            add_action('admin_notices', array($this, 'show_pro_upgrade_notices'));
-            add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'add_pro_upgrade_link'));
-            add_action('admin_menu', array($this, 'add_pro_upgrade_menu'));
-            add_action('wp_ajax_dismiss_pro_notice', array($this, 'dismiss_pro_notice'));
+            // Pro upgrade integration (enabled only for testing environments)
+            if (class_exists('PressStackPro') || class_exists('PressStackProTestLicenseActivator')) {
+                add_action('admin_notices', array($this, 'show_pro_upgrade_notices'));
+                add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'add_pro_upgrade_link'));
+                add_action('admin_menu', array($this, 'add_pro_upgrade_menu'));
+                add_action('wp_ajax_dismiss_pro_notice', array($this, 'dismiss_pro_notice'));
+            }
         }
     }
 
@@ -492,7 +494,7 @@ class PressStack {
     }
 
     /**
-     * Show Pro upgrade notices
+     * Show Pro upgrade notices (DISABLED - Enable when Pro is ready)
      */
     public function show_pro_upgrade_notices() {
         // Don't show if Pro is already active
@@ -554,7 +556,7 @@ class PressStack {
     }
 
     /**
-     * Add Pro upgrade link to plugin actions
+     * Add Pro upgrade link to plugin actions (DISABLED - Enable when Pro is ready)
      */
     public function add_pro_upgrade_link($links) {
         // Don't show if Pro is already active
@@ -568,7 +570,7 @@ class PressStack {
     }
 
     /**
-     * Add Pro upgrade menu
+     * Add Pro upgrade menu (DISABLED - Enable when Pro is ready)
      */
     public function add_pro_upgrade_menu() {
         // Don't show if Pro is already active
@@ -1944,5 +1946,51 @@ if (is_admin()) {
         </div>
         <?php
     }
+
+    /**
+     * Create database table for press release URLs
+     */
+    public function create_database_table() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'press_release_urls';
+
+        $charset_collate = $wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE $table_name (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            press_release_id bigint(20) NOT NULL,
+            url varchar(500) NOT NULL,
+            title varchar(200) DEFAULT '' NOT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            PRIMARY KEY (id),
+            KEY press_release_id (press_release_id)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+
+    /**
+     * Plugin deactivation hook
+     */
+    public function deactivate_plugin() {
+        // Flush rewrite rules
+        flush_rewrite_rules();
+    }
+}
+
+// Initialize the plugin
+$pressstack = new PressStack();
+
+// Set up activation and deactivation hooks
+register_activation_hook(__FILE__, array($pressstack, 'activate_plugin'));
+register_deactivation_hook(__FILE__, array($pressstack, 'deactivate_plugin'));
+
+// Initialize admin menus and other functions
+if (is_admin()) {
+    add_action('admin_menu', 'add_shortcode_builder_menu');
+    add_action('admin_menu', 'add_settings_menu');
+    add_action('admin_menu', 'add_security_menu');
+    add_action('admin_init', 'register_settings');
 }
 ?>
