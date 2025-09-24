@@ -1014,22 +1014,10 @@ class PressStack {
     }
 }
 
-// Initialize the plugin
-global $pressstack;
-$pressstack = new PressStack();
-
-// Activation/Deactivation Hooks
-register_activation_hook(__FILE__, array($pressstack, 'activate_plugin'));
-register_deactivation_hook(__FILE__, array($pressstack, 'deactivate_plugin'));
-
 // Admin functions for bulk URL import
 if (is_admin()) {
     add_action('add_meta_boxes', 'add_press_release_meta_boxes');
     add_action('save_post', 'save_press_release_urls');
-    add_action('admin_menu', 'add_shortcode_builder_menu');
-    add_action('admin_menu', 'add_settings_menu');
-    add_action('admin_menu', 'add_security_menu');
-    add_action('admin_init', 'register_settings');
 
     function add_press_release_meta_boxes() {
         add_meta_box(
@@ -1502,18 +1490,18 @@ if (is_admin()) {
         }
     }
 
-    function add_shortcode_builder_menu() {
+    public function add_shortcode_builder_menu() {
         add_submenu_page(
             'edit.php?post_type=press_release',
             'Shortcode Builder',
             'Shortcode Builder',
             'manage_options',
             'press-release-shortcode-builder',
-            'display_shortcode_builder_page'
+            array($this, 'display_shortcode_builder_page')
         );
     }
 
-    function display_shortcode_builder_page() {
+    public function display_shortcode_builder_page() {
         ?>
         <div class="wrap">
             <h1>📋 Press Releases Shortcode Builder</h1>
@@ -1730,22 +1718,22 @@ if (is_admin()) {
         <?php
     }
 
-    function add_settings_menu() {
+    public function add_settings_menu() {
         add_submenu_page(
             'edit.php?post_type=press_release',
             'Press Releases Settings',
             'Settings',
             'manage_options',
             'press-releases-settings',
-            'display_settings_page'
+            array($this, 'display_settings_page')
         );
     }
 
-    function register_settings() {
+    public function register_settings() {
         register_setting('press_releases_settings', 'press_releases_redirect_url');
     }
 
-    function display_settings_page() {
+    public function display_settings_page() {
         $current_url = get_option('press_releases_redirect_url', '');
         ?>
         <div class="wrap">
@@ -1809,18 +1797,18 @@ if (is_admin()) {
         <?php
     }
 
-    function add_security_menu() {
+    public function add_security_menu() {
         add_submenu_page(
             'edit.php?post_type=press_release',
             'Security Status',
             'Security',
             'manage_options',
             'press-releases-security',
-            'display_security_page'
+            array($this, 'display_security_page')
         );
     }
 
-    function display_security_page() {
+    public function display_security_page() {
         ?>
         <div class="wrap">
             <h1>🔒 Press Releases Security Status</h1>
@@ -1988,9 +1976,9 @@ register_deactivation_hook(__FILE__, array($pressstack, 'deactivate_plugin'));
 
 // Initialize admin menus and other functions
 if (is_admin()) {
-    add_action('admin_menu', 'add_shortcode_builder_menu');
-    add_action('admin_menu', 'add_settings_menu');
-    add_action('admin_menu', 'add_security_menu');
-    add_action('admin_init', 'register_settings');
+    add_action('admin_menu', array($pressstack, 'add_shortcode_builder_menu'));
+    add_action('admin_menu', array($pressstack, 'add_settings_menu'));
+    add_action('admin_menu', array($pressstack, 'add_security_menu'));
+    add_action('admin_init', array($pressstack, 'register_settings'));
 }
 ?>
