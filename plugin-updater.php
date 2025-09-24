@@ -53,7 +53,12 @@ class PressReleasesUpdater {
 
         $remote_version = $this->get_remote_version();
 
-        if (version_compare($this->version, $remote_version, '<')) {
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("PressStack Updater: Current version: {$this->version}, Remote version: {$remote_version}");
+        }
+
+        if ($remote_version && version_compare($this->version, $remote_version, '<')) {
             $transient->response[$this->plugin_slug] = (object) array(
                 'slug' => dirname($this->plugin_slug),
                 'plugin' => $this->plugin_slug,
@@ -76,7 +81,7 @@ class PressReleasesUpdater {
 
         if (!$force_check) {
             $cached_version = get_transient($cache_key);
-            if ($cached_version !== false) {
+            if ($cached_version !== false && !empty($cached_version)) {
                 return $cached_version;
             }
         }
@@ -92,14 +97,22 @@ class PressReleasesUpdater {
             $body = wp_remote_retrieve_body($request);
             $data = json_decode($body, true);
 
-            if (isset($data['tag_name'])) {
+            if (isset($data['tag_name']) && !empty($data['tag_name'])) {
                 $version = ltrim($data['tag_name'], 'v');
-                // Cache for 1 hour instead of 12 hours
-                set_transient($cache_key, $version, HOUR_IN_SECONDS);
-                return $version;
+                // Clean version format and ensure it's valid
+                $version = preg_replace('/[^0-9.]/', '', $version);
+                if (!empty($version)) {
+                    // Cache for 15 minutes for faster update detection
+                    set_transient($cache_key, $version, 15 * MINUTE_IN_SECONDS);
+                    return $version;
+                }
             }
         }
 
+        // Log error for debugging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('PressStack Updater: Failed to get remote version from GitHub API');
+        }
         return false;
     }
 

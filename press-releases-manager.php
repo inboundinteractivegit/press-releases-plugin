@@ -3,7 +3,7 @@
  * Plugin Name: PressStack
  * Plugin URI: https://github.com/inboundinteractivegit/press-releases-plugin
  * Description: Free press releases management with AJAX-loaded URLs, advanced security, and beginner-friendly interface. Manage hundreds of press release URLs with SEO optimization and comprehensive protection. Support our development with a donation!
- * Version: 1.5.5
+ * Version: 1.5.6
  * Author: Inbound Interactive
  * Author URI: https://inboundinteractive.com
  * Text Domain: pressstack
@@ -93,7 +93,7 @@ class PressStack {
         flush_rewrite_rules();
 
         // Set plugin version
-        update_option('pressstack_version', '1.5.5');
+        update_option('pressstack_version', '1.5.6');
         update_option('pressstack_activation_time', current_time('mysql'));
     }
 
@@ -788,8 +788,8 @@ class PressStack {
         }
 
         wp_enqueue_script('jquery');
-        wp_enqueue_script('press-releases-js', plugin_dir_url(__FILE__) . 'press-releases.js', array('jquery'), '1.5.5', true);
-        wp_enqueue_style('press-releases-css', plugin_dir_url(__FILE__) . 'press-releases.css', array(), '1.5.5');
+        wp_enqueue_script('press-releases-js', plugin_dir_url(__FILE__) . 'press-releases.js', array('jquery'), '1.5.6', true);
+        wp_enqueue_style('press-releases-css', plugin_dir_url(__FILE__) . 'press-releases.css', array(), '1.5.6');
 
         wp_localize_script('press-releases-js', 'press_releases_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
@@ -809,8 +809,8 @@ class PressStack {
         }
 
         wp_enqueue_script('jquery');
-        wp_enqueue_script('press-releases-admin-js', plugin_dir_url(__FILE__) . 'press-releases.js', array('jquery'), '1.5.5', true);
-        wp_enqueue_style('press-releases-admin-css', plugin_dir_url(__FILE__) . 'press-releases.css', array(), '1.5.5');
+        wp_enqueue_script('press-releases-admin-js', plugin_dir_url(__FILE__) . 'press-releases.js', array('jquery'), '1.5.6', true);
+        wp_enqueue_style('press-releases-admin-css', plugin_dir_url(__FILE__) . 'press-releases.css', array(), '1.5.6');
 
         wp_localize_script('press-releases-admin-js', 'press_releases_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),

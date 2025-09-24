@@ -5,6 +5,30 @@ All notable changes to the Press Releases Manager plugin will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.6] - 2025-09-24
+
+### 🔧 Auto-Updater Fixes
+
+#### Fixed
+- **Auto-update detection improved** - Reduced cache time from 1 hour to 15 minutes for faster update detection
+- **Version parsing enhanced** - Better handling of GitHub version tags
+- **Cache handling improved** - Fixed issues where empty cache values were being returned
+- **Debug logging added** - Better troubleshooting for update detection issues
+- **Force check functionality enhanced** - More reliable manual update checking
+
+#### Technical Details
+- Reduced update check cache from 1 hour to 15 minutes
+- Added validation for empty version strings
+- Enhanced version format cleaning with regex
+- Added debug logging when WP_DEBUG is enabled
+- Improved error handling for GitHub API failures
+
+#### Impact
+- ✅ **Faster update detection** - Users will see new versions within 15 minutes
+- ✅ **More reliable auto-updates** - Eliminates need for constant force checking
+- ✅ **Better debugging** - Easier to troubleshoot update issues
+- ✅ **Improved user experience** - Smoother update process
+
 ## [1.5.5] - 2025-09-24
 
 ### 🚨 CRITICAL Bug Fixes - Resolving Site Errors
