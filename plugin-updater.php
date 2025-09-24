@@ -233,7 +233,7 @@ class PressReleasesUpdater {
      * Handle force update check
      */
     public function force_update_check() {
-        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['force_check_nonce'], 'force_update_check')) {
+        if (!current_user_can('manage_options') || !isset($_POST['force_check_nonce']) || !wp_verify_nonce($_POST['force_check_nonce'], 'force_update_check')) {
             wp_die('Security check failed');
         }
 
@@ -252,7 +252,7 @@ class PressReleasesUpdater {
      * AJAX handler for force update check
      */
     public function ajax_force_update_check() {
-        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'force_update_check')) {
+        if (!current_user_can('manage_options') || !isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'force_update_check')) {
             wp_die('Security check failed');
         }
 

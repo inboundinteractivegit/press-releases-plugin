@@ -230,7 +230,7 @@ class PressStack {
      * Dismiss SEO update notice
      */
     public function dismiss_seo_notice() {
-        if (!wp_verify_nonce($_POST['nonce'], 'dismiss_seo_notice')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'dismiss_seo_notice')) {
             wp_die('Security check failed');
         }
         update_option('press_releases_seo_notice_dismissed', true);
@@ -441,7 +441,7 @@ class PressStack {
      * Dismiss donation notice via AJAX
      */
     public function dismiss_donation_notice() {
-        if (!wp_verify_nonce($_POST['nonce'], 'dismiss_donation_notice')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'dismiss_donation_notice')) {
             wp_die('Security check failed');
         }
         update_option('pressstack_donation_dismissed', true);
@@ -709,7 +709,7 @@ class PressStack {
      * Dismiss Pro upgrade notice via AJAX
      */
     public function dismiss_pro_notice() {
-        if (!wp_verify_nonce($_POST['nonce'], 'dismiss_pro_notice')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'dismiss_pro_notice')) {
             wp_die('Security check failed');
         }
         update_option('pressstack_pro_notice_dismissed', true);
@@ -735,7 +735,7 @@ class PressStack {
      */
     public function ajax_load_urls() {
         // Security checks
-        if (!wp_verify_nonce($_POST['nonce'], 'press_releases_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'press_releases_nonce')) {
             wp_die('Security check failed');
         }
 
