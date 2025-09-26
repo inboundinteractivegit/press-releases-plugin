@@ -152,7 +152,7 @@ The auto-updater has been fixed and should now work properly:
 
 ### Manual Installation
 If automatic update fails:
-1. Download `press-releases-plugin-v1.5.8.zip`
+1. Download the release ZIP from GitHub release assets
 2. **Deactivate** current PressStack version
 3. **Delete** old plugin files
 4. **Upload** and **activate** v1.5.8
@@ -262,7 +262,7 @@ Thanks to our testing team for validating all 32 test assertions and ensuring en
 
 ---
 
-**Download**: [press-releases-plugin-v1.5.8.zip](../../releases/download/v1.5.8/press-releases-plugin-v1.5.8.zip)
+**Download**: Available as release asset when GitHub release is created
 **View Changes**: [Full Changelog](CHANGELOG.md#v158)
 **Report Issues**: [GitHub Issues](../../issues)
 **Documentation**: [README.md](README.md) | [Testing Guide](tests/README.md)
