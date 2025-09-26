@@ -1570,5 +1570,5 @@ new PressReleasesManager();
 // Plugin updater
 if ( is_admin() ) {
     require_once plugin_dir_path( __FILE__ ) . 'plugin-updater.php';
-    $updater = new PressReleases_Plugin_Updater( __FILE__, 'inboundinteractivegit', 'press-releases-plugin' );
+    $updater = new PressReleasesUpdater( __FILE__, 'inboundinteractivegit', 'press-releases-plugin' );
 }
