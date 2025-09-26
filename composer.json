@@ -1,0 +1,23 @@
+{
+    "name": "pressstack/press-releases-plugin",
+    "description": "WordPress Plugin for Press Releases Management",
+    "type": "wordpress-plugin",
+    "require-dev": {
+        "squizlabs/php_codesniffer": "^3.7",
+        "wp-coding-standards/wpcs": "^2.3",
+        "phpunit/phpunit": "^9.5",
+        "yoast/phpunit-polyfills": "^1.0",
+        "dealerdirect/phpcodesniffer-composer-installer": "^0.7"
+    },
+    "scripts": {
+        "lint": "phpcs --standard=WordPress *.php",
+        "format": "phpcbf --standard=WordPress *.php",
+        "test": "phpunit",
+        "test:coverage": "phpunit --coverage-html coverage"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}
