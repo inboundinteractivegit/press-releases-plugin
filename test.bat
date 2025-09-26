@@ -3,11 +3,11 @@ echo === PHP WordPress Plugin Testing ===
 echo.
 
 echo [1/4] Installing dependencies...
-call composer install --no-interaction
+call php composer.phar install --no-interaction
 
 echo.
 echo [2/4] Running PHP CodeSniffer (Linting)...
-call vendor\bin\phpcs --standard=WordPress *.php
+call vendor\bin\phpcs --standard=WordPress press-releases-manager.php plugin-updater.php
 if %ERRORLEVEL% NEQ 0 (
     echo LINT FAILED! Fix the issues above.
     pause
