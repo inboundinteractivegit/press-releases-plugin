@@ -3,7 +3,7 @@
         'name' => 'pressstack/press-releases-plugin',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'd2115d469aeab821de8d9ff7979e8fe9efe383d8',
+        'reference' => '2038527386080aa45a1eff2274cae25980f7c409',
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -121,7 +121,7 @@
         'pressstack/press-releases-plugin' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'd2115d469aeab821de8d9ff7979e8fe9efe383d8',
+            'reference' => '2038527386080aa45a1eff2274cae25980f7c409',
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
