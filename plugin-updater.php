@@ -137,7 +137,7 @@ class PressReleasesUpdater {
 	 * Get download URL for specific version
 	 */
 	private function get_download_url( $version ) {
-		return "https://github.com/{$this->github_username}/{$this->github_repo}/releases/download/v{$version}/press-releases-plugin-v{$version}-fixed.zip";
+		return "https://github.com/{$this->github_username}/{$this->github_repo}/releases/download/v{$version}/press-releases-plugin-v{$version}.zip";
 	}
 
 	/**
