@@ -288,6 +288,15 @@ class PressReleasesUpdater {
 }
 
 /**
+ * Backward compatibility for v1.5.8 broken class name
+ * v1.5.8 expects PressReleases_Plugin_Updater but updater had PressReleasesUpdater
+ * This alias ensures v1.5.8 can update to newer versions
+ */
+if (!class_exists('PressReleases_Plugin_Updater')) {
+    class_alias('PressReleasesUpdater', 'PressReleases_Plugin_Updater');
+}
+
+/**
  * Initialize updater
  *
  * Usage: Uncomment and configure these lines in your main plugin file:
