@@ -32,11 +32,8 @@ jobs:
           -x "*.git*" "*.zip"
 
     - name: Upload release asset
-      uses: actions/upload-release-asset@v1
+      uses: softprops/action-gh-release@v1
+      with:
+        files: press-releases-plugin-v${{ steps.get_version.outputs.VERSION }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./press-releases-plugin-v${{ steps.get_version.outputs.VERSION }}.zip
-        asset_name: press-releases-plugin-v${{ steps.get_version.outputs.VERSION }}.zip
-        asset_content_type: application/zip
