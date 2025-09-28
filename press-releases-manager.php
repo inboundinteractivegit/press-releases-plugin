@@ -501,8 +501,21 @@ class PressStack {
             $release_id
         ));
 
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("PressStack Debug: Loading URLs for release $release_id. Found " . count($urls) . " URLs.");
+        }
+
         if (empty($urls)) {
-            echo '<p>No URLs found for this press release.</p>';
+            echo '<p>No URLs found for this press release. (ID: ' . $release_id . ')</p>';
+            // Check if the table exists and has any data
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
+            if (!$table_exists) {
+                echo '<p><strong>Debug:</strong> Database table does not exist.</p>';
+            } else {
+                $total_urls = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+                echo '<p><strong>Debug:</strong> Table exists with ' . $total_urls . ' total URLs.</p>';
+            }
             wp_die();
         }
 
@@ -1246,10 +1259,13 @@ if (is_admin()) {
                     </div>
 
                     <div class="form-row" style="margin-bottom: 15px;">
-                        <label style="display: inline-block; max-width: 400px; font-size: 14px;">
-                            <input type="checkbox" name="replace_urls" value="1" style="margin-right: 8px;">
-                            🔄 Replace all existing URLs (otherwise, new URLs will be added)
+                        <label style="display: inline-flex; align-items: center; font-size: 14px; max-width: 100%; width: auto;">
+                            <input type="checkbox" name="replace_urls" value="1" style="margin-right: 8px; width: auto; height: auto;">
+                            <span style="white-space: nowrap;">🔄 Replace all existing URLs</span>
                         </label>
+                        <div style="font-size: 12px; color: #666; margin-top: 5px; margin-left: 24px;">
+                            (Otherwise, new URLs will be added to existing ones)
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1646,6 +1662,16 @@ if (is_admin()) {
                 // Debug logging for large datasets
                 if (defined('WP_DEBUG') && WP_DEBUG && count($batch_data) > 100) {
                     error_log("PressStack: Bulk inserted " . count($batch_data) . " URLs for post $post_id. Result: " . ($result !== false ? 'SUCCESS' : 'FAILED'));
+                }
+
+                // Verify the save worked
+                $saved_count = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM $table_name WHERE press_release_id = %d",
+                    $post_id
+                ));
+
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("PressStack: After save, post $post_id now has $saved_count URLs in database.");
                 }
             }
         }
