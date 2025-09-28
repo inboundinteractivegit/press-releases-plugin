@@ -1347,6 +1347,7 @@ if (is_admin()) {
                 // Update display
                 updateNewUrlsDisplay();
                 updateUrlStats();
+                updateJsonData();
 
                 // Clear form
                 $('#new-url').val('');
@@ -1400,9 +1401,43 @@ if (is_admin()) {
 
             // MISSING FUNCTIONALITY RESTORED: Confirm bulk import
             $('#confirm-bulk-btn').click(function() {
-                $('#bulk_urls_hidden').val($('#bulk-urls').val());
-                alert('URLs will be added when you save/update this press release.');
+                var bulkText = $('#bulk-urls').val();
+
+                // Copy to hidden field for backend processing
+                $('#bulk_urls_hidden').val(bulkText);
+
+                // Also add to newUrls array for immediate preview
+                var lines = bulkText.trim().split('\n');
+                lines.forEach(function(line) {
+                    line = line.trim();
+                    if (line) {
+                        var url, title;
+                        if (line.includes(',')) {
+                            var parts = line.split(',', 2);
+                            url = parts[0].trim();
+                            title = parts[1].trim();
+                        } else {
+                            url = line;
+                            title = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+                        }
+
+                        if (url.match(/^https?:\/\//)) {
+                            newUrls.push({
+                                id: 'new_' + (++urlIdCounter),
+                                url: url,
+                                title: title || url
+                            });
+                        }
+                    }
+                });
+
+                updateNewUrlsDisplay();
+                updateUrlStats();
+                updateJsonData();
+
+                alert('URLs added to the list! Click "Save" or "Update" to save them.');
                 $('#bulk-preview').hide();
+                $('#bulk-urls').val(''); // Clear the textarea
             });
 
             // Update displays
@@ -1428,12 +1463,18 @@ if (is_admin()) {
                 $('#url-status').text(totalCount > 0 ? 'Ready to display (' + newUrls.length + ' pending save)' : 'No URLs added yet');
             }
 
+            function updateJsonData() {
+                // Update the hidden JSON field with current newUrls data
+                $('#url-data-json').val(JSON.stringify(newUrls));
+            }
+
             // Remove new URL
             $(document).on('click', '.remove-new-url', function() {
                 var index = $(this).data('index');
                 newUrls.splice(index, 1);
                 updateNewUrlsDisplay();
                 updateUrlStats();
+                updateJsonData();
             });
 
             // Clear bulk textarea
