@@ -3,7 +3,7 @@
  * Plugin Name: PressStack
  * Plugin URI: https://github.com/inboundinteractivegit/press-releases-plugin
  * Description: Free press releases management with AJAX-loaded URLs, advanced security, and beginner-friendly interface. Manage hundreds of press release URLs with SEO optimization and comprehensive protection. Support our development with a donation!
- * Version: 1.5.11
+ * Version: 1.5.9
  * Author: Inbound Interactive
  * Author URI: https://inboundinteractive.com
  * Text Domain: pressstack
