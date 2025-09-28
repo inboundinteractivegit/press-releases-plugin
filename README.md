@@ -1,6 +1,21 @@
-# Press Releases Manager - WordPress Plugin
+# PressStack - WordPress Plugin
 
 A powerful WordPress plugin for managing press releases with 500+ URLs using accordion interface and AJAX loading for optimal performance.
+
+## 🛡️ Safe Testing Workflow
+
+**IMPORTANT:** This plugin uses a safe testing workflow to prevent code disasters. Before making any changes, run:
+
+```bash
+safe-test.bat
+```
+
+This script is **100% READ-ONLY** and will never modify your code. It only validates:
+- PHP syntax and critical functionality
+- Security features and file structure
+- Plugin updater and component integrity
+
+**Never use automated code-fixing tools** - they can destroy working functionality. See `SAFE-TESTING.md` for complete details.
 
 ## 📁 Files Overview
 
