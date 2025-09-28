@@ -1245,9 +1245,9 @@ if (is_admin()) {
                         </p>
                     </div>
 
-                    <div class="form-row">
-                        <label>
-                            <input type="checkbox" name="replace_urls" value="1">
+                    <div class="form-row" style="margin-bottom: 15px;">
+                        <label style="display: inline-block; max-width: 400px; font-size: 14px;">
+                            <input type="checkbox" name="replace_urls" value="1" style="margin-right: 8px;">
                             🔄 Replace all existing URLs (otherwise, new URLs will be added)
                         </label>
                     </div>
@@ -1483,6 +1483,19 @@ if (is_admin()) {
                 $('#bulk-preview').hide();
             });
 
+            // Add loading indicator for large datasets
+            $('#post').on('submit', function() {
+                var urlCount = newUrls.length;
+                var bulkText = $('#bulk_urls_hidden').val();
+                var bulkCount = bulkText ? bulkText.split('\n').length : 0;
+                var totalCount = urlCount + bulkCount;
+
+                if (totalCount > 100) {
+                    var overlay = $('<div id="save-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999999; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px;"><div style="text-align: center;"><div style="font-size: 24px; margin-bottom: 10px;">💾 Saving ' + totalCount + ' URLs...</div><div style="font-size: 14px;">This may take a moment for large datasets</div></div></div>');
+                    $('body').append(overlay);
+                }
+            });
+
             // Save new URLs data to hidden field before form submission
             $('form').submit(function() {
                 if (newUrls.length > 0) {
@@ -1513,6 +1526,7 @@ if (is_admin()) {
 
         global $wpdb;
         $table_name = $wpdb->prefix . 'press_release_urls';
+        $batch_data = array(); // For batch insert performance
 
         // Handle individual URLs from JSON data (new tabbed interface)
         if (!empty($_POST['url_data_json'])) {
@@ -1550,18 +1564,17 @@ if (is_admin()) {
                         $clean_title = substr($clean_title, 0, 200);
                     }
 
-                    // Use prepared statement for security
-                    $wpdb->insert(
-                        $table_name,
-                        array(
-                            'press_release_id' => $post_id,
-                            'url' => $clean_url,
-                            'title' => $clean_title
-                        ),
-                        array('%d', '%s', '%s')
-                    );
+                    // Use prepared statement for security (batch insert for performance)
+                    $batch_data[] = $wpdb->prepare("(%d, %s, %s)", $post_id, $clean_url, $clean_title);
                 }
             }
+        }
+
+        // Execute batch insert for JSON URLs (better performance)
+        if (!empty($batch_data)) {
+            $batch_values = implode(', ', $batch_data);
+            $wpdb->query("INSERT INTO $table_name (press_release_id, url, title) VALUES $batch_values");
+            $batch_data = array(); // Reset for bulk URLs
         }
 
         // Handle bulk URLs (both legacy textarea and new bulk import)
@@ -1620,18 +1633,20 @@ if (is_admin()) {
                     $clean_title = substr($clean_title, 0, 200);
                 }
 
-                // Use prepared statement
-                $wpdb->insert(
-                    $table_name,
-                    array(
-                        'press_release_id' => $post_id,
-                        'url' => $clean_url,
-                        'title' => $clean_title
-                    ),
-                    array('%d', '%s', '%s')
-                );
-
+                // Add to batch for performance
+                $batch_data[] = $wpdb->prepare("(%d, %s, %s)", $post_id, $clean_url, $clean_title);
                 $processed_count++;
+            }
+
+            // Execute final batch insert for bulk URLs (better performance)
+            if (!empty($batch_data)) {
+                $batch_values = implode(', ', $batch_data);
+                $result = $wpdb->query("INSERT INTO $table_name (press_release_id, url, title) VALUES $batch_values");
+
+                // Debug logging for large datasets
+                if (defined('WP_DEBUG') && WP_DEBUG && count($batch_data) > 100) {
+                    error_log("PressStack: Bulk inserted " . count($batch_data) . " URLs for post $post_id. Result: " . ($result !== false ? 'SUCCESS' : 'FAILED'));
+                }
             }
         }
     }
