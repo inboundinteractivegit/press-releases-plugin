@@ -1527,40 +1527,74 @@ if (is_admin()) {
         // Enhanced security checks
         if (!isset($_POST['press_release_urls_nonce']) ||
             !wp_verify_nonce($_POST['press_release_urls_nonce'], 'save_press_release_urls')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("PressStack DEBUG: Nonce verification failed for post $post_id");
+            }
             return;
         }
 
         // Check user permissions
         if (!current_user_can('edit_post', $post_id) || !current_user_can('edit_posts')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("PressStack DEBUG: Permission check failed for post $post_id");
+            }
             return;
         }
 
         // Validate post type
         if (get_post_type($post_id) != 'press_release') {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("PressStack DEBUG: Wrong post type for post $post_id: " . get_post_type($post_id));
+            }
             return;
         }
 
         global $wpdb;
         $table_name = $wpdb->prefix . 'press_release_urls';
-        $batch_data = array(); // For batch insert performance
+        $batch_data = array();
+        $total_urls_to_save = 0;
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("PressStack DEBUG: Starting save process for post $post_id");
+            error_log("PressStack DEBUG: JSON data present: " . (isset($_POST['url_data_json']) ? 'YES' : 'NO'));
+            error_log("PressStack DEBUG: Bulk data present: " . (isset($_POST['bulk_urls']) || isset($_POST['bulk_urls_hidden']) ? 'YES' : 'NO'));
+        }
 
         // Handle individual URLs from JSON data (new tabbed interface)
         if (!empty($_POST['url_data_json'])) {
             $json_data = stripslashes($_POST['url_data_json']);
 
-            // Validate JSON size (prevent DoS attacks)
-            if (strlen($json_data) > 50000) { // 50KB limit
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("PressStack DEBUG: JSON data size: " . strlen($json_data) . " bytes");
+            }
+
+            // Validate JSON size (prevent DoS attacks) - INCREASED LIMIT FOR BULK IMPORTS
+            if (strlen($json_data) > 500000) { // 500KB limit (was 50KB)
+                error_log("PressStack ERROR: JSON data too large for post $post_id: " . strlen($json_data) . " bytes");
                 wp_die('Data too large. Please reduce the number of URLs.');
             }
 
             $new_urls = json_decode($json_data, true);
 
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("PressStack ERROR: JSON decode failed for post $post_id: " . json_last_error_msg());
+                }
+                return;
+            }
+
             if (is_array($new_urls) && !empty($new_urls)) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("PressStack DEBUG: Processing " . count($new_urls) . " URLs from JSON for post $post_id");
+                }
+
                 // Limit number of URLs to prevent abuse
                 if (count($new_urls) > 1000) {
+                    error_log("PressStack ERROR: Too many JSON URLs for post $post_id: " . count($new_urls));
                     wp_die('Too many URLs. Maximum 1000 URLs allowed per press release.');
                 }
 
+                $json_processed = 0;
                 foreach ($new_urls as $url_data) {
                     if (!is_array($url_data) || !isset($url_data['url'])) {
                         continue;
@@ -1569,6 +1603,9 @@ if (is_admin()) {
                     // Basic URL validation
                     $clean_url = esc_url_raw($url_data['url']);
                     if (!$clean_url || !filter_var($clean_url, FILTER_VALIDATE_URL)) {
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            error_log("PressStack DEBUG: Invalid URL skipped: " . $url_data['url']);
+                        }
                         continue;
                     }
 
@@ -1582,30 +1619,54 @@ if (is_admin()) {
 
                     // Use prepared statement for security (batch insert for performance)
                     $batch_data[] = $wpdb->prepare("(%d, %s, %s)", $post_id, $clean_url, $clean_title);
+                    $json_processed++;
                 }
+
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("PressStack DEBUG: Prepared $json_processed valid URLs from JSON for post $post_id");
+                }
+                $total_urls_to_save += $json_processed;
             }
         }
 
         // Execute batch insert for JSON URLs (better performance)
         if (!empty($batch_data)) {
             $batch_values = implode(', ', $batch_data);
-            $wpdb->query("INSERT INTO $table_name (press_release_id, url, title) VALUES $batch_values");
+            $json_result = $wpdb->query("INSERT INTO $table_name (press_release_id, url, title) VALUES $batch_values");
+
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                if ($json_result === false) {
+                    error_log("PressStack ERROR: JSON batch insert failed for post $post_id. MySQL Error: " . $wpdb->last_error);
+                } else {
+                    error_log("PressStack DEBUG: JSON batch insert successful for post $post_id. Rows affected: $json_result");
+                }
+            }
+
             $batch_data = array(); // Reset for bulk URLs
         }
 
         // Handle bulk URLs (both legacy textarea and new bulk import)
         $bulk_urls_field = !empty($_POST['bulk_urls']) ? $_POST['bulk_urls'] : (!empty($_POST['bulk_urls_hidden']) ? $_POST['bulk_urls_hidden'] : '');
         if (!empty($bulk_urls_field)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("PressStack DEBUG: Processing bulk URLs for post $post_id. Size: " . strlen($bulk_urls_field) . " bytes");
+            }
+
             // Validate bulk data size
             if (strlen($bulk_urls_field) > 100000) { // 100KB limit
+                error_log("PressStack ERROR: Bulk data too large for post $post_id: " . strlen($bulk_urls_field) . " bytes");
                 wp_die('Bulk data too large. Please reduce the number of URLs.');
             }
 
             // Replace existing URLs if requested
             if (isset($_POST['replace_urls']) && $_POST['replace_urls'] == '1') {
                 if (current_user_can('delete_posts')) {
-                    $wpdb->delete($table_name, array('press_release_id' => $post_id), array('%d'));
+                    $deleted = $wpdb->delete($table_name, array('press_release_id' => $post_id), array('%d'));
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log("PressStack DEBUG: Deleted $deleted existing URLs for post $post_id (replace mode)");
+                    }
                 } else {
+                    error_log("PressStack ERROR: Insufficient permissions to replace URLs for post $post_id");
                     wp_die('Insufficient permissions to replace existing URLs.');
                 }
             }
@@ -1613,18 +1674,27 @@ if (is_admin()) {
             $urls_text = sanitize_textarea_field($bulk_urls_field);
             $urls_lines = explode("\n", $urls_text);
 
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("PressStack DEBUG: Found " . count($urls_lines) . " lines in bulk data for post $post_id");
+            }
+
             // Limit number of lines to prevent abuse
             if (count($urls_lines) > 1000) {
+                error_log("PressStack ERROR: Too many bulk URLs for post $post_id: " . count($urls_lines));
                 wp_die('Too many URLs in bulk import. Maximum 1000 URLs allowed.');
             }
 
             $processed_count = 0;
-            foreach ($urls_lines as $line) {
+            $valid_urls = 0;
+            foreach ($urls_lines as $line_num => $line) {
                 $line = trim($line);
                 if (empty($line)) continue;
 
                 // Prevent processing too many URLs
                 if ($processed_count >= 1000) {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log("PressStack DEBUG: Stopped at 1000 URL limit for post $post_id");
+                    }
                     break;
                 }
 
@@ -1640,6 +1710,9 @@ if (is_admin()) {
                 // Basic URL validation
                 $clean_url = esc_url_raw($url);
                 if (!$clean_url || !filter_var($clean_url, FILTER_VALIDATE_URL)) {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log("PressStack DEBUG: Invalid bulk URL on line " . ($line_num + 1) . " for post $post_id: $url");
+                    }
                     continue;
                 }
 
@@ -1652,27 +1725,46 @@ if (is_admin()) {
                 // Add to batch for performance
                 $batch_data[] = $wpdb->prepare("(%d, %s, %s)", $post_id, $clean_url, $clean_title);
                 $processed_count++;
+                $valid_urls++;
             }
+
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("PressStack DEBUG: Prepared $valid_urls valid URLs from bulk data for post $post_id");
+            }
+            $total_urls_to_save += $valid_urls;
 
             // Execute final batch insert for bulk URLs (better performance)
             if (!empty($batch_data)) {
                 $batch_values = implode(', ', $batch_data);
-                $result = $wpdb->query("INSERT INTO $table_name (press_release_id, url, title) VALUES $batch_values");
-
-                // Debug logging for large datasets
-                if (defined('WP_DEBUG') && WP_DEBUG && count($batch_data) > 100) {
-                    error_log("PressStack: Bulk inserted " . count($batch_data) . " URLs for post $post_id. Result: " . ($result !== false ? 'SUCCESS' : 'FAILED'));
-                }
-
-                // Verify the save worked
-                $saved_count = $wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM $table_name WHERE press_release_id = %d",
-                    $post_id
-                ));
+                $bulk_result = $wpdb->query("INSERT INTO $table_name (press_release_id, url, title) VALUES $batch_values");
 
                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log("PressStack: After save, post $post_id now has $saved_count URLs in database.");
+                    if ($bulk_result === false) {
+                        error_log("PressStack ERROR: Bulk batch insert failed for post $post_id. MySQL Error: " . $wpdb->last_error);
+                        error_log("PressStack ERROR: Failed query length: " . strlen($batch_values) . " characters");
+                    } else {
+                        error_log("PressStack DEBUG: Bulk batch insert successful for post $post_id. Rows affected: $bulk_result");
+                    }
                 }
+            }
+        }
+
+        // Final verification and comprehensive logging
+        $saved_count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE press_release_id = %d",
+            $post_id
+        ));
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("PressStack DEBUG: FINAL RESULT for post $post_id:");
+            error_log("  - URLs attempted to save: $total_urls_to_save");
+            error_log("  - URLs actually in database: $saved_count");
+            error_log("  - Database table exists: " . ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name ? 'YES' : 'NO'));
+
+            if ($total_urls_to_save > 0 && $saved_count == 0) {
+                error_log("PressStack ERROR: CRITICAL - URLs were processed but none saved to database!");
+                error_log("PressStack ERROR: Last MySQL error: " . $wpdb->last_error);
+                error_log("PressStack ERROR: Last query: " . $wpdb->last_query);
             }
         }
     }
